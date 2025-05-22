@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Photon.Pun;
 
 #if UNITY_EDITOR
     using UnityEditor;
@@ -17,6 +18,10 @@ using UnityEngine.UI;
 public class FirstPersonController : MonoBehaviour
 {
     private Rigidbody rb;
+
+    public PhotonView ph;
+
+    public GameObject cam;
 
     #region Camera Movement Variables
 
@@ -151,6 +156,11 @@ public class FirstPersonController : MonoBehaviour
 
     void Start()
     {
+        if (!ph.IsMine)
+        {
+            cam.SetActive(false);
+        }
+
         if(lockCursor)
         {
             Cursor.lockState = CursorLockMode.Locked;
