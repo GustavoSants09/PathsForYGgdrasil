@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PickupObject : MonoBehaviour
 {
-    private Camera cam;
+    [SerializeField] Camera cam;
     private GameObject heldObject;
     private Vector3 offset;
 

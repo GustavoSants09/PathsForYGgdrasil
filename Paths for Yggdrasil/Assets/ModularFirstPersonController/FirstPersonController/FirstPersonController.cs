@@ -159,6 +159,8 @@ public class FirstPersonController : MonoBehaviour
         if (!ph.IsMine)
         {
             cam.SetActive(false);
+
+            enableSprint = false;
         }
 
         if(lockCursor)
