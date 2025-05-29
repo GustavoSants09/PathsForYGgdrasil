@@ -9,12 +9,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Photon.Pun;
-using Unity.VisualScripting;
-using Photon.Pun;
-
 
 #if UNITY_EDITOR
-using UnityEditor;
+    using UnityEditor;
     using System.Net;
 #endif
 
@@ -166,12 +163,12 @@ public class FirstPersonController : MonoBehaviour
             enableSprint = false;
         }
 
-        if (lockCursor)
+        if(lockCursor)
         {
             Cursor.lockState = CursorLockMode.Locked;
         }
 
-        if (crosshair)
+        if(crosshair)
         {
             crosshairObject.sprite = crosshairImage;
             crosshairObject.color = crosshairColor;
@@ -179,11 +176,6 @@ public class FirstPersonController : MonoBehaviour
         else
         {
             crosshairObject.gameObject.SetActive(false);
-        }
-
-        if(!ph.IsMine)
-        {
-            Destroy(this);
         }
 
         #region Sprint Bar
