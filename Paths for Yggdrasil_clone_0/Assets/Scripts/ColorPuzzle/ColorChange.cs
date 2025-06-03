@@ -1,13 +1,15 @@
 using UnityEngine;
+using Photon.Pun;
 
 public class ColorChange : MonoBehaviour, Interectable
 {
-
-    Material mat;
+    private Material mat;
+    private PhotonView photonView;
 
     private void Start()
     {
-        mat = GetComponent<MeshRenderer>().material;
+        photonView = GetComponent<PhotonView>();
+        mat = GetComponent<MeshRenderer>().material; // ou sharedMaterial, dependendo do seu caso
     }
 
     public string GetDescription()
@@ -17,8 +19,20 @@ public class ColorChange : MonoBehaviour, Interectable
 
     public void Interact()
     {
-        Color[] cores = { Color.grey, Color.green, Color.blue, Color.red, Color.yellow };
-        mat.color = cores[Random.Range(0, cores.Length)];
+        if (photonView.IsMine)
+        {
+            Color[] cores = { Color.grey, Color.green, Color.blue, Color.red, Color.yellow };
+            Color selectedColor = cores[Random.Range(0, cores.Length)];
+
+            // Envia os componentes da cor (r,g,b,a) para todos os clientes
+            photonView.RPC("ChangeColorRPC", RpcTarget.AllBuffered, selectedColor.r, selectedColor.g, selectedColor.b, selectedColor.a);
+        }
     }
 
+    [PunRPC]
+    private void ChangeColorRPC(float r, float g, float b, float a)
+    {
+        Color newColor = new Color(r, g, b, a);
+        mat.color = newColor;
+    }
 }
