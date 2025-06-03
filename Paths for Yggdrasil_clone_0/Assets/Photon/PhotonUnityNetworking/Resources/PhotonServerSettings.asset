@@ -42,7 +42,6 @@ MonoBehaviour:
   - Char1IsTrue
   - Char2IsTrue
   - CharsIsFalse
-  - ChangeColorRPC
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0

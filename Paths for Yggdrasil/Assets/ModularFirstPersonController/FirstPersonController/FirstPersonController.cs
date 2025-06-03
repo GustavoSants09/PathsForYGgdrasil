@@ -161,8 +161,6 @@ public class FirstPersonController : MonoBehaviour
             cam.SetActive(false);
 
             enableSprint = false;
-
-            this.enabled = false;
         }
 
         if(lockCursor)
