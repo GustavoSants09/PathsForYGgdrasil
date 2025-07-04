@@ -1,46 +1,115 @@
 using UnityEngine;
+using Photon.Pun;
 
-public class PickupObject : MonoBehaviour
+[RequireComponent(typeof(PhotonView))]
+[RequireComponent(typeof(Rigidbody))]
+public class PickupObject : MonoBehaviourPun, IPunObservable
 {
-    [SerializeField] Camera cam;
-    private GameObject heldObject;
-    private Vector3 offset;
+    public bool isHeld = false;
+    private bool isLocked = false;
 
-    public float maxPickupDistance = 5f; // Max distance to pick up objects
-    public LayerMask objectLayer; // Only interactive objects
+    private Vector3 holdOffset = new Vector3(0, 1.5f, 2f);
+    private Transform holdPoint;
+    private Rigidbody rb;
+    private Camera mainCamera;
 
     void Start()
     {
-        cam = Camera.main;
+        rb = GetComponent<Rigidbody>();
+        mainCamera = Camera.main;
     }
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) // Left mouse button click
+        if (isHeld && photonView.IsMine && !isLocked)
         {
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
-
-            if (Physics.Raycast(ray, out hit, maxPickupDistance, objectLayer))
+            // Tenta encontrar a câmera se ainda não tiver
+            if (mainCamera == null)
             {
-                if (hit.collider.CompareTag("Object"))
+                mainCamera = Camera.main;
+                if (mainCamera == null)
                 {
-                    heldObject = hit.collider.gameObject;
-                    offset = heldObject.transform.position - hit.point;
+                    Debug.LogWarning("Camera.main ainda não encontrada. Aguardando...");
+                    return; // aguarda até que ela exista
                 }
             }
+
+            if (holdPoint == null)
+            {
+                holdPoint = new GameObject("HoldPoint").transform;
+                holdPoint.SetParent(mainCamera.transform);
+                holdPoint.localPosition = holdOffset;
+            }
+
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.MovePosition(holdPoint.position);
+            rb.MoveRotation(Quaternion.identity);
+
+            if (Input.GetMouseButtonUp(0))
+            {
+                isHeld = false;
+                rb.useGravity = true;
+                Destroy(holdPoint.gameObject);
+            }
+        }
+    }
+
+
+    private void OnMouseDown()
+    {
+        if (isLocked) return; // não pode pegar se estiver travado
+
+        if (!photonView.IsMine)
+        {
+            photonView.RequestOwnership();
         }
 
-        if (Input.GetMouseButton(0) && heldObject) // While holding the mouse button
-        {
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            Vector3 newPosition = ray.GetPoint(3f); // Adjust this distance as needed
-            heldObject.transform.position = newPosition;
-        }
+        isHeld = true;
+        rb.useGravity = false;
+    }
 
-        if (Input.GetMouseButtonUp(0) && heldObject) // Releasing the object
+    // Chamado pela base quando for colocado corretamente
+    public void LockObject(Vector3 position)
+    {
+        photonView.RPC("RPC_LockObject", RpcTarget.AllBuffered, position);
+    }
+
+    [PunRPC]
+    void RPC_LockObject(Vector3 position)
+    {
+        isLocked = true;
+        isHeld = false;
+
+        rb.isKinematic = true;
+        rb.useGravity = false;
+        transform.position = position;
+        transform.rotation = Quaternion.identity;
+        if (holdPoint != null) Destroy(holdPoint.gameObject);
+    }
+
+    public bool IsLocked()
+    {
+        return isLocked;
+    }
+
+    // Sincroniza a posição caso esteja sendo segurado
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+        if (stream.IsWriting && isHeld)
         {
-            heldObject = null;
+            stream.SendNext(transform.position);
+            stream.SendNext(transform.rotation);
+        }
+        else if (stream.IsReading)
+        {
+            Vector3 pos = (Vector3)stream.ReceiveNext();
+            Quaternion rot = (Quaternion)stream.ReceiveNext();
+            if (!isHeld && !isLocked)
+            {
+                transform.position = Vector3.Lerp(transform.position, pos, Time.deltaTime * 10f);
+                transform.rotation = Quaternion.Lerp(transform.rotation, rot, Time.deltaTime * 10f);
+            }
         }
     }
 }

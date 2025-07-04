@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 7609090202059499455}
   - component: {fileID: -199522030183751471}
   - component: {fileID: 8044963288977661724}
+  - component: {fileID: -7627071084283326071}
   m_Layer: 3
   m_Name: StatueYellow
   m_TagString: Statue
@@ -175,7 +176,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!114 &8044963288977661724
@@ -191,3 +192,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   statueColor: Yellow
+--- !u!114 &-7627071084283326071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4698532861944705890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b95087388ef6a714b98f9790c631340e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

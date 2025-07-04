@@ -2,17 +2,22 @@ using UnityEngine;
 
 public class BaseDetector : MonoBehaviour
 {
-    public string baseColor; // Ex: "Blue"
+    public string baseColor;
 
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Statue"))
         {
+            PickupObject pickup = other.GetComponent<PickupObject>();
             StatuePlacement statue = other.GetComponent<StatuePlacement>();
-            if (statue != null && statue.statueColor == baseColor)
+
+            if (statue != null && pickup != null && !pickup.IsLocked())
             {
-                // Trava a estátua na posição da base
-                statue.LockStatue(transform.position);
+                if (statue.statueColor == baseColor)
+                {
+                    // Chama o travamento pelo Photon
+                    pickup.LockObject(transform.position);
+                }
             }
         }
     }

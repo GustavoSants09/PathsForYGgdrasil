@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 4543615383274450283}
   - component: {fileID: 2393074437726717306}
   - component: {fileID: -3256711600513477817}
+  - component: {fileID: -5042446024713934284}
   m_Layer: 3
   m_Name: StatueBlue
   m_TagString: Statue
@@ -132,6 +133,7 @@ MonoBehaviour:
   observableSearch: 2
   ObservedComponents:
   - {fileID: 4543615383274450283}
+  - {fileID: -5042446024713934284}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -175,7 +177,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!114 &-3256711600513477817
@@ -191,3 +193,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   statueColor: Blue
+--- !u!114 &-5042446024713934284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4846280777456495340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b95087388ef6a714b98f9790c631340e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
