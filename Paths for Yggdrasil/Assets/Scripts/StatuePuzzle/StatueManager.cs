@@ -1,18 +1,29 @@
-using UnityEngine;
+﻿using UnityEngine;
+using Photon.Pun;
 
-public class StatueManager : MonoBehaviour
+public class StatueManager : MonoBehaviourPun
 {
     public StatuePlacement[] statues;
+    public FinalDoor finalDoorScript; // arraste o componente FinalDoor no Inspector
+
+    private bool puzzleResolved = false;
 
     void Update()
     {
-        if (AllStatuesLocked())
+        if (puzzleResolved) return;
+
+        bool allLocked = AllStatuesLocked();
+        Debug.Log("🔍 Verificando estátuas travadas: " + allLocked);
+
+        if (allLocked)
         {
-            Debug.Log("Puzzle resolvido!");
-            // Coloque aqui o que acontecer� quando o puzzle for resolvido
-            // Ex: abrir uma porta, tocar som, mostrar painel etc.
+            puzzleResolved = true;
+            Debug.Log("✅ Todas as estátuas estão travadas! Chamando RPC...");
+            photonView.RPC("ActivateDoorScript", RpcTarget.AllBuffered);
         }
     }
+
+
 
     bool AllStatuesLocked()
     {
@@ -22,5 +33,19 @@ public class StatueManager : MonoBehaviour
                 return false;
         }
         return true;
+    }
+
+    [PunRPC]
+    void ActivateDoorScript()
+    {
+        if (finalDoorScript != null)
+        {
+            finalDoorScript.canInteract = true;
+            Debug.Log("🔓 Script FinalDoor ativado — Porta agora pode ser interagida.");
+        }
+        else
+        {
+            Debug.LogError("❌ Campo 'finalDoorScript' não foi atribuído no Inspector.");
+        }
     }
 }

@@ -41,7 +41,7 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
                 holdPoint.localPosition = holdOffset;
             }
 
-            rb.velocity = Vector3.zero;
+            rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.MovePosition(holdPoint.position);
             rb.MoveRotation(Quaternion.identity);
@@ -50,16 +50,25 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
             {
                 isHeld = false;
                 rb.useGravity = true;
-                Destroy(holdPoint.gameObject);
+
+                if (holdPoint != null)
+                {
+                    Destroy(holdPoint.gameObject);
+                    holdPoint = null;
+                    Debug.Log("Essa porra ta destruindo");
+                }
             }
+
         }
     }
 
 
     private void OnMouseDown()
     {
-        if (isLocked) return; // não pode pegar se estiver travado
+    {
+        if (isLocked) return; // objeto travado na base
 
+        // Pede ownership se ainda não for dono
         if (!photonView.IsMine)
         {
             photonView.RequestOwnership();
@@ -69,11 +78,26 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
         rb.useGravity = false;
     }
 
+}
+
     // Chamado pela base quando for colocado corretamente
-    public void LockObject(Vector3 position)
+    public void LockObject(Vector3 basePosition)
     {
-        photonView.RPC("RPC_LockObject", RpcTarget.AllBuffered, position);
+        isLocked = true;
+        isHeld = false;
+
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        rb.useGravity = false;
+        rb.isKinematic = true;
+        transform.position = basePosition;
+
+        if (photonView.IsMine)
+        {
+            photonView.RPC("RPC_Lock", RpcTarget.AllBuffered, basePosition);
+        }
     }
+
 
     [PunRPC]
     void RPC_LockObject(Vector3 position)
