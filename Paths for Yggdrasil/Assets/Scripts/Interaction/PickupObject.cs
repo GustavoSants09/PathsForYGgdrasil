@@ -100,7 +100,7 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
 
 
     [PunRPC]
-    void RPC_LockObject(Vector3 position)
+    void RPC_Lock(Vector3 position)
     {
         isLocked = true;
         isHeld = false;
@@ -111,6 +111,7 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
         transform.rotation = Quaternion.identity;
         if (holdPoint != null) Destroy(holdPoint.gameObject);
     }
+
 
     public bool IsLocked()
     {
