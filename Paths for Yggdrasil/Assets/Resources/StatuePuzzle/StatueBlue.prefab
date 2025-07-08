@@ -193,6 +193,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   statueColor: Blue
+  pickupObject: {fileID: 0}
 --- !u!114 &-5042446024713934284
 MonoBehaviour:
   m_ObjectHideFlags: 0

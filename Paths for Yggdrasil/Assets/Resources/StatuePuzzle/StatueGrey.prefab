@@ -192,6 +192,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   statueColor: Grey
+  pickupObject: {fileID: 0}
 --- !u!114 &-7206077966401404759
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -204,3 +205,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b95087388ef6a714b98f9790c631340e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isHeld: 0

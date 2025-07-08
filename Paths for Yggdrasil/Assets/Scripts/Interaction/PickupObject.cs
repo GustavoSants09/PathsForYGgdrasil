@@ -6,12 +6,12 @@ using Photon.Pun;
 public class PickupObject : MonoBehaviourPun, IPunObservable
 {
     public bool isHeld = false;
-    private bool isLocked = false;
+    bool isLocked = false;
 
-    private Vector3 holdOffset = new Vector3(0, 1.5f, 2f);
-    private Transform holdPoint;
-    private Rigidbody rb;
-    private Camera mainCamera;
+    Vector3 holdOffset = new Vector3(0, 1.5f, 2f);
+    Transform holdPoint;
+    Rigidbody rb;
+    Camera mainCamera;
 
     void Start()
     {
@@ -23,14 +23,12 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
     {
         if (isHeld && photonView.IsMine && !isLocked)
         {
-            // Tenta encontrar a câmera se ainda não tiver
             if (mainCamera == null)
             {
                 mainCamera = Camera.main;
                 if (mainCamera == null)
                 {
-                    Debug.LogWarning("Camera.main ainda não encontrada. Aguardando...");
-                    return; // aguarda até que ela exista
+                    return;
                 }
             }
 
@@ -55,20 +53,20 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
                 {
                     Destroy(holdPoint.gameObject);
                     holdPoint = null;
-                    Debug.Log("Essa porra ta destruindo");
                 }
             }
+        }
 
+        if (!photonView.IsMine)
+        {
+            photonView.RequestOwnership();
         }
     }
 
-
-    private void OnMouseDown()
+    void OnMouseDown()
     {
-    {
-        if (isLocked) return; // objeto travado na base
+        if (isLocked) return;
 
-        // Pede ownership se ainda não for dono
         if (!photonView.IsMine)
         {
             photonView.RequestOwnership();
@@ -78,9 +76,6 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
         rb.useGravity = false;
     }
 
-}
-
-    // Chamado pela base quando for colocado corretamente
     public void LockObject(Vector3 basePosition)
     {
         isLocked = true;
@@ -113,14 +108,11 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
         Debug.Log($"✅ [RPC_Lock] {gameObject.name} foi travada.");
     }
 
-
-
     public bool IsLocked()
     {
         return isLocked;
     }
 
-    // Sincroniza a posição caso esteja sendo segurado
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
         if (stream.IsWriting && isHeld)
