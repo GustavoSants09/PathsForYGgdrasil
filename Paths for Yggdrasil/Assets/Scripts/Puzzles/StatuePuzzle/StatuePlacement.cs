@@ -5,6 +5,7 @@ public class StatuePlacement : MonoBehaviourPun
 {
     public string statueColor; // Ex: "Blue"
     private bool isLocked = false;
+    public PickupObject pickupObject;
 
     public void LockStatue(Vector3 lockPosition)
     {
@@ -32,6 +33,6 @@ public class StatuePlacement : MonoBehaviourPun
 
     public bool IsLocked()
     {
-        return isLocked;
+        return pickupObject != null && pickupObject.IsLocked();
     }
 }

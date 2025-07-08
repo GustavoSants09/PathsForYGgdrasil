@@ -3,10 +3,16 @@ using Photon.Pun;
 
 public class StatueManager : MonoBehaviourPun
 {
-    public StatuePlacement[] statues;
+    public PickupObject[] statues;
     public FinalDoor finalDoorScript; // arraste o componente FinalDoor no Inspector
 
     private bool puzzleResolved = false;
+
+    [System.Obsolete]
+    void Start()
+    {
+        statues = FindObjectsOfType<PickupObject>();
+    }
 
     void Update()
     {
@@ -27,13 +33,20 @@ public class StatueManager : MonoBehaviourPun
 
     bool AllStatuesLocked()
     {
-        foreach (var statue in statues)
+        bool allLocked = true;
+
+        for (int i = 0; i < statues.Length; i++)
         {
-            if (!statue.IsLocked())
-                return false;
+            bool locked = statues[i].IsLocked();
+            Debug.Log($"🔍 Estátua {i}: isLocked = {locked}");
+
+            if (!locked)
+                allLocked = false;
         }
-        return true;
+
+        return allLocked;
     }
+
 
     [PunRPC]
     void ActivateDoorScript()

@@ -98,7 +98,6 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
         }
     }
 
-
     [PunRPC]
     void RPC_Lock(Vector3 position)
     {
@@ -110,7 +109,10 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
         transform.position = position;
         transform.rotation = Quaternion.identity;
         if (holdPoint != null) Destroy(holdPoint.gameObject);
+
+        Debug.Log($"✅ [RPC_Lock] {gameObject.name} foi travada.");
     }
+
 
 
     public bool IsLocked()
