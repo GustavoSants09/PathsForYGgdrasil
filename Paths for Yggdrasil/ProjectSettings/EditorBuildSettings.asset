@@ -10,7 +10,7 @@ EditorBuildSettings:
     guid: 00000000000000000000000000000000
   - enabled: 1
     path: Assets/Scenes/Menu.unity
-    guid: f64fda6923764f84a9461269eedc8d2b
+    guid: c606e76768969094fb783bddc103543c
   - enabled: 1
     path: Assets/Scenes/Lobby.unity
     guid: 58594f869a57cad4b82925a302d6d16d
