@@ -1,15 +1,30 @@
 using TMPro;
 using UnityEngine;
+using Photon.Pun;
 
-public class PlayerInteraction : MonoBehaviour
+public class PlayerInteraction : MonoBehaviourPun
 {
-
     public Camera mainCam;
     public float interactionDistance = 2f;
 
     public GameObject interactionUI;
     public TextMeshProUGUI interactionText;
 
+    void Start()
+    {
+        // Garante que só o dono do Player tenha a câmera ativada
+        if (!photonView.IsMine)
+        {
+            mainCam.enabled = false;
+            this.enabled = false;
+            return;
+        }
+
+        if (mainCam == null)
+        {
+            mainCam = GetComponentInChildren<Camera>();
+        }
+    }
 
     private void Update()
     {
@@ -23,7 +38,7 @@ public class PlayerInteraction : MonoBehaviour
 
         bool hitSomething = false;
 
-        if(Physics.Raycast(ray, out hit, interactionDistance))
+        if (Physics.Raycast(ray, out hit, interactionDistance))
         {
             Interectable interectable = hit.collider.GetComponent<Interectable>();
 
@@ -35,9 +50,17 @@ public class PlayerInteraction : MonoBehaviour
                 if (Input.GetKeyDown(KeyCode.E))
                 {
                     interectable.Interact();
+
+                    // Se o objeto for PickupObject, passa a câmera corretamente
+                    PickupObject pickup = hit.collider.GetComponent<PickupObject>();
+                    if (pickup != null && pickup.photonView.IsMine)
+                    {
+                        pickup.SetCamera(mainCam);
+                    }
                 }
             }
         }
+
         interactionUI.SetActive(hitSomething);
     }
 }

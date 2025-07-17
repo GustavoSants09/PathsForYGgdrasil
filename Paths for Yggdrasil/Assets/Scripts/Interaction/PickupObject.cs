@@ -16,21 +16,31 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        mainCamera = Camera.main;
+
+        if (photonView.IsMine)
+        {
+            FirstPersonController[] players = FindObjectsOfType<FirstPersonController>();
+            foreach (var player in players)
+            {
+                if (player.ph.IsMine)
+                {
+                    mainCamera = player.playerCamera;
+                    break;
+                }
+            }
+        }
+    }
+
+    public void SetCamera(Camera camera)
+    {
+        mainCamera = camera;
     }
 
     void Update()
     {
         if (isHeld && photonView.IsMine && !isLocked)
         {
-            if (mainCamera == null)
-            {
-                mainCamera = Camera.main;
-                if (mainCamera == null)
-                {
-                    return;
-                }
-            }
+            if (mainCamera == null) return;
 
             if (holdPoint == null)
             {
@@ -55,11 +65,6 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
                     holdPoint = null;
                 }
             }
-        }
-
-        if (!photonView.IsMine)
-        {
-            photonView.RequestOwnership();
         }
     }
 
@@ -89,7 +94,7 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
 
         if (photonView.IsMine)
         {
-            photonView.RPC("RPC_Lock", RpcTarget.AllBuffered, basePosition);
+            photonView.RPC(nameof(RPC_Lock), RpcTarget.AllBuffered, basePosition);
         }
     }
 
@@ -115,15 +120,18 @@ public class PickupObject : MonoBehaviourPun, IPunObservable
 
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
-        if (stream.IsWriting && isHeld)
+        if (stream.IsWriting)
         {
+            stream.SendNext(isHeld);
             stream.SendNext(transform.position);
             stream.SendNext(transform.rotation);
         }
-        else if (stream.IsReading)
+        else
         {
+            isHeld = (bool)stream.ReceiveNext();
             Vector3 pos = (Vector3)stream.ReceiveNext();
             Quaternion rot = (Quaternion)stream.ReceiveNext();
+
             if (!isHeld && !isLocked)
             {
                 transform.position = Vector3.Lerp(transform.position, pos, Time.deltaTime * 10f);
