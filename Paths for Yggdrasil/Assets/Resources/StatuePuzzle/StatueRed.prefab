@@ -134,6 +134,7 @@ MonoBehaviour:
   observableSearch: 2
   ObservedComponents:
   - {fileID: 6391665852959495137}
+  - {fileID: -6018975522403196163}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -220,7 +221,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   outlineMode: 0
-  outlineColor: {r: 1, g: 0.8624264, b: 0, a: 1}
+  outlineColor: {r: 1, g: 0, b: 0.02849722, a: 1}
   outlineWidth: 5.06
   precomputeOutline: 0
   bakeKeys: []
