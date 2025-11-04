@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PhotonServerSettings
   m_EditorClassIdentifier: 
   AppSettings:
-    AppIdRealtime: acfdecf2-a911-442e-ac16-e88f8c026cdb
+    AppIdRealtime: b0d3c5a2-c344-4034-bcb4-42d7574df820
     AppIdFusion: 
     AppIdChat: 
     AppIdVoice: 
@@ -48,6 +48,12 @@ MonoBehaviour:
   - ActivateDoor
   - ActivateDoorScript
   - RPC_Lock
+  - RPC_BreakObject
+  - RPC_ClearLine
+  - RPC_OnDroppedObject
+  - RPC_OnHoldingObject
+  - RPC_RequestOwnership
+  - RPC_SetLineStart
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0

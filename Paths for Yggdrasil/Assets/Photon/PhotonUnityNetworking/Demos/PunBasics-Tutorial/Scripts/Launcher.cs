@@ -12,7 +12,6 @@ using UnityEngine;
 using UnityEngine.UI;
 
 using Photon.Realtime;
-using UnityEngine.SceneManagement;
 
 namespace Photon.Pun.Demo.PunBasics
 {
@@ -41,10 +40,6 @@ namespace Photon.Pun.Demo.PunBasics
 		[Tooltip("The UI Loader Anime")]
 		[SerializeField]
 		private LoaderAnime loaderAnime;
-
-		[Tooltip("Next Scene to Load")]
-		[SerializeField]
-		private int nextSceneToLoad;
 
 		#endregion
 
@@ -220,7 +215,7 @@ namespace Photon.Pun.Demo.PunBasics
 
 				// #Critical
 				// Load the Room Level. 
-				PhotonNetwork.LoadLevel(nextSceneToLoad);
+				PhotonNetwork.LoadLevel("PunBasics-Room for 1");
 
 			}
 		}
