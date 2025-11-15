@@ -39,18 +39,6 @@ MonoBehaviour:
   - ClickRpc
   - DestroyRpc
   - HeresWhy
-  - ActivateDoorScript
-  - DestroySpaceship
-  - Fire
-  - LockStatueRPC
-  - RespawnSpaceship
-  - RPC_BreakObject
-  - RPC_ClearLine
-  - RPC_Lock
-  - RPC_OnDroppedObject
-  - RPC_OnHoldingObject
-  - RPC_RequestOwnership
-  - RPC_SetLineStart
   DisableAutoOpenWizard: 1
-  ShowSettings: 1
+  ShowSettings: 0
   DevRegionSetOnce: 0
