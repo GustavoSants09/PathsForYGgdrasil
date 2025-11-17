@@ -1,16 +1,22 @@
-using UnityEngine;
-
-public class IPuzzle : MonoBehaviour
+namespace Yggdrasil.Puzzles
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public enum PuzzleState
     {
-        
+        NotStarted,
+        Active,
+        Completed,
+        Failed
     }
 
-    // Update is called once per frame
-    void Update()
+    public interface IPuzzle
     {
-        
+        PuzzleState State { get; }
+        int PuzzleIndex { get; }
+
+        void Initialize();
+        void StartPuzzle();
+        void CompletePuzzle();
+        void FailPuzzle();
+        void ResetPuzzle();
     }
 }

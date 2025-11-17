@@ -1,16 +1,39 @@
 using UnityEngine;
+using Photon.Pun;
 
-public class PlatformController : MonoBehaviour
+namespace Yggdrasil.Puzzles.LeverParkour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public class PlatformController : MonoBehaviourPunCallbacks
     {
-        
-    }
+        [Header("Platform Settings")]
+        [SerializeField] private Vector3 raisedPosition;
+        [SerializeField] private Vector3 loweredPosition;
+        [SerializeField] private float moveSpeed = 2f;
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+        private Vector3 targetPosition;
+        private bool isRaised = false;
+
+        private void Start()
+        {
+            transform.position = loweredPosition;
+            targetPosition = loweredPosition;
+        }
+
+        private void Update()
+        {
+            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
+        }
+
+        public void RaisePlatform()
+        {
+            targetPosition = raisedPosition;
+            isRaised = true;
+        }
+
+        public void LowerPlatform()
+        {
+            targetPosition = loweredPosition;
+            isRaised = false;
+        }
     }
 }

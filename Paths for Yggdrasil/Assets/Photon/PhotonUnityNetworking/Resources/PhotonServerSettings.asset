@@ -49,6 +49,7 @@ MonoBehaviour:
   - RPC_RequestOwnership
   - RPC_SetLineStart
   - RPC_UpdateHealth
+  - RPC_PuzzleCompleted
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0
