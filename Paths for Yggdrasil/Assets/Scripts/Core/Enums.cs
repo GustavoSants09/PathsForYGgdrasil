@@ -1,16 +1,13 @@
-using UnityEngine;
-
-public class Enums : MonoBehaviour
+public enum PlayerRole
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    None,
+    PlayerA,
+    PlayerB
+}
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+public enum PuzzleState
+{
+    Inactive,
+    Active,
+    Completed
 }

@@ -1,16 +1,25 @@
 using UnityEngine;
+using UnityEngine.Events;
 
-public class GameEvents : MonoBehaviour
+public static class GameEvents
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    // Game Flow
+    public static UnityAction OnGameStart;
+    public static UnityAction OnGameOver;
+    public static UnityAction OnVictory;
+    public static UnityAction OnPlayerDisconnected;
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // Player
+    public static UnityAction<PlayerRole> OnRoleAssigned;
+
+    // Branch
+    public static UnityAction OnBranchPickedUp;
+    public static UnityAction OnBranchDropped;
+
+    // Altar
+    public static UnityAction OnAltarActivated;
+
+    // Puzzles
+    public static UnityAction<int> OnPuzzleCompleted; // int = puzzle index
+    public static UnityAction<int> OnLoadNextPuzzle;
 }

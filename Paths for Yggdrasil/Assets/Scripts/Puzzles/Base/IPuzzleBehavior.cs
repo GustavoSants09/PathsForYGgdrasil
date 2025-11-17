@@ -1,16 +1,8 @@
-using UnityEngine;
-
-public class IPuzzleBehavior : MonoBehaviour
+public interface IPuzzleBehavior
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    void InitializePuzzle();
+    void ActivatePuzzle();
+    void DeactivatePuzzle();
+    bool CheckSolution();
+    void OnPuzzleCompleted();
 }

@@ -1,16 +1,49 @@
+using Photon.Pun;
 using UnityEngine;
 
-public class PuzzleController : MonoBehaviour
+public abstract class PuzzleController : MonoBehaviourPun, IPuzzleBehavior
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    [Header("Base Settings")]
+    [SerializeField] protected int puzzleIndex;
+    [SerializeField] protected bool isActive = false;
+
+    protected bool isCompleted = false;
+
+    public virtual void InitializePuzzle()
     {
-        
+        isActive = false;
+        isCompleted = false;
+        Debug.Log($"[Puzzle {puzzleIndex}] Initialized");
     }
 
-    // Update is called once per frame
-    void Update()
+    public virtual void ActivatePuzzle()
     {
-        
+        isActive = true;
+        Debug.Log($"[Puzzle {puzzleIndex}] Activated");
+    }
+
+    public virtual void DeactivatePuzzle()
+    {
+        isActive = false;
+        Debug.Log($"[Puzzle {puzzleIndex}] Deactivated");
+    }
+
+    public abstract bool CheckSolution();
+
+    public virtual void OnPuzzleCompleted()
+    {
+        if (isCompleted) return;
+
+        isCompleted = true;
+        isActive = false;
+
+        photonView.RPC("RPC_PuzzleCompleted", RpcTarget.All);
+    }
+
+    [PunRPC]
+    protected virtual void RPC_PuzzleCompleted()
+    {
+        Debug.Log($"[Puzzle {puzzleIndex}] COMPLETED!");
+        GameEvents.OnPuzzleCompleted?.Invoke(puzzleIndex);
     }
 }
