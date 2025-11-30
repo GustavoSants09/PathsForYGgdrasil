@@ -50,6 +50,9 @@ MonoBehaviour:
   - RPC_SetLineStart
   - RPC_UpdateHealth
   - RPC_PuzzleCompleted
+  - RPC_DestroyCrystal
+  - RPC_EndGame
+  - RPC_GetStunned
   DisableAutoOpenWizard: 1
   ShowSettings: 1
-  DevRegionSetOnce: 0
+  DevRegionSetOnce: 1
