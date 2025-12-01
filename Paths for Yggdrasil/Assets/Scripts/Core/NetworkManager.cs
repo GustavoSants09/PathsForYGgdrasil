@@ -7,45 +7,51 @@ using System.Collections.Generic;
 namespace QuantumHeist.Network
 {
     /// <summary>
-    /// Gerencia toda a comunicação com Photon PUN2
+    /// Gerencia toda a comunicação com Photon PUN2 para o sistema de lobby
     /// Responsável por conexão, criação/listagem de salas e callbacks de rede
     /// </summary>
     public class NetworkManager : MonoBehaviourPunCallbacks
     {
         [Header("Configurações de Conexão")]
         [SerializeField] private string gameVersion = "1.0";
-        [SerializeField] private byte maxPlayersPerRoom = 4;
+        [SerializeField] private byte maxPlayersPerRoom = 2; // Quantum Heist é 1v1
 
-        [Header("UI References")]
+        [Header("UI - Painéis")]
         [SerializeField] private GameObject lobbyPanel;
         [SerializeField] private GameObject roomPanel;
+
+        [Header("UI - Lobby")]
+        [SerializeField] private TMP_InputField nicknameInput;
         [SerializeField] private TMP_InputField roomNameInput;
-        [SerializeField] private TMP_InputField playerNameInput;
         [SerializeField] private TMP_Text connectionStatusText;
-        [SerializeField] private TMP_Text roomStatusText;
         [SerializeField] private Transform roomListContent;
         [SerializeField] private GameObject roomListItemPrefab;
+
+        [Header("UI - Room")]
+        [SerializeField] private TMP_Text roomTitleText;
+        [SerializeField] private TMP_Text playersInRoomText;
+        [SerializeField] private GameObject startGameButton;
         [SerializeField] private Transform playerListContent;
         [SerializeField] private GameObject playerListItemPrefab;
-        [SerializeField] private GameObject startGameButton;
 
+        // Cache de salas disponíveis
         private Dictionary<string, RoomInfo> cachedRoomList = new Dictionary<string, RoomInfo>();
 
         #region Unity Callbacks
 
         private void Start()
         {
-            // Define o nome do jogador baseado em PlayerPrefs ou valor padrão
-            if (PlayerPrefs.HasKey("PlayerName"))
+            // Carrega nickname salvo ou gera um aleatório
+            if (PlayerPrefs.HasKey("PlayerNickname"))
             {
-                playerNameInput.text = PlayerPrefs.GetString("PlayerName");
+                nicknameInput.text = PlayerPrefs.GetString("PlayerNickname");
             }
             else
             {
-                playerNameInput.text = "Player" + Random.Range(1000, 9999);
+                nicknameInput.text = "Player" + Random.Range(1000, 9999);
             }
 
-            // Inicia conexão automática ao servidor Photon
+            // Conecta automaticamente ao Photon
             ConnectToPhoton();
         }
 
@@ -56,47 +62,35 @@ namespace QuantumHeist.Network
         /// <summary>
         /// Inicia conexão com servidores Photon
         /// </summary>
-        public void ConnectToPhoton()
+        private void ConnectToPhoton()
         {
-            UpdateConnectionStatus("Conectando ao servidor...");
+            UpdateConnectionStatus("Conectando...");
 
             PhotonNetwork.AutomaticallySyncScene = true; // Sincroniza cenas automaticamente
             PhotonNetwork.GameVersion = gameVersion;
-            PhotonNetwork.NickName = playerNameInput.text;
+            PhotonNetwork.NickName = nicknameInput.text;
 
             PhotonNetwork.ConnectUsingSettings();
         }
 
-        /// <summary>
-        /// Desconecta do servidor Photon
-        /// </summary>
-        public void DisconnectFromPhoton()
-        {
-            if (PhotonNetwork.IsConnected)
-            {
-                PhotonNetwork.Disconnect();
-                UpdateConnectionStatus("Desconectando...");
-            }
-        }
-
         #endregion
 
-        #region Gerenciamento de Salas
+        #region Métodos Públicos - UI Buttons
 
         /// <summary>
-        /// Cria uma nova sala com o nome especificado
+        /// Cria uma sala com nome customizado
         /// </summary>
         public void CreateRoom()
         {
             if (string.IsNullOrEmpty(roomNameInput.text))
             {
-                UpdateConnectionStatus("ERRO: Nome da sala não pode estar vazio!");
+                UpdateConnectionStatus("ERRO: Digite um nome para a sala!");
                 return;
             }
 
-            // Salva o nome do jogador
-            PlayerPrefs.SetString("PlayerName", playerNameInput.text);
-            PhotonNetwork.NickName = playerNameInput.text;
+            // Salva nickname
+            PlayerPrefs.SetString("PlayerNickname", nicknameInput.text);
+            PhotonNetwork.NickName = nicknameInput.text;
 
             RoomOptions roomOptions = new RoomOptions
             {
@@ -114,11 +108,23 @@ namespace QuantumHeist.Network
         /// </summary>
         public void JoinRoom(string roomName)
         {
-            PlayerPrefs.SetString("PlayerName", playerNameInput.text);
-            PhotonNetwork.NickName = playerNameInput.text;
+            PlayerPrefs.SetString("PlayerNickname", nicknameInput.text);
+            PhotonNetwork.NickName = nicknameInput.text;
 
             UpdateConnectionStatus($"Entrando na sala '{roomName}'...");
             PhotonNetwork.JoinRoom(roomName);
+        }
+
+        /// <summary>
+        /// Entra em uma sala aleatória disponível
+        /// </summary>
+        public void JoinRandomRoom()
+        {
+            PlayerPrefs.SetString("PlayerNickname", nicknameInput.text);
+            PhotonNetwork.NickName = nicknameInput.text;
+
+            UpdateConnectionStatus("Procurando sala disponível...");
+            PhotonNetwork.JoinRandomRoom();
         }
 
         /// <summary>
@@ -141,6 +147,12 @@ namespace QuantumHeist.Network
                 return;
             }
 
+            if (PhotonNetwork.CurrentRoom.PlayerCount < 2)
+            {
+                UpdateConnectionStatus("Aguardando segundo jogador...");
+                return;
+            }
+
             // Fecha a sala para novos jogadores
             PhotonNetwork.CurrentRoom.IsOpen = false;
             PhotonNetwork.CurrentRoom.IsVisible = false;
@@ -155,7 +167,7 @@ namespace QuantumHeist.Network
 
         public override void OnConnectedToMaster()
         {
-            UpdateConnectionStatus("Conectado ao servidor!");
+            UpdateConnectionStatus("Conectado! Entrando no lobby...");
             Debug.Log($"Conectado ao servidor Photon. Região: {PhotonNetwork.CloudRegion}");
 
             // Entra automaticamente no lobby
@@ -202,19 +214,14 @@ namespace QuantumHeist.Network
         public override void OnJoinedRoom()
         {
             UpdateConnectionStatus($"Na sala: {PhotonNetwork.CurrentRoom.Name}");
-            UpdateRoomStatus();
-
             Debug.Log($"Entrou na sala '{PhotonNetwork.CurrentRoom.Name}'. Jogadores: {PhotonNetwork.CurrentRoom.PlayerCount}/{PhotonNetwork.CurrentRoom.MaxPlayers}");
 
-            // Muda para painel da sala
+            // Troca para painel de sala
             lobbyPanel.SetActive(false);
             roomPanel.SetActive(true);
 
-            // Atualiza lista de jogadores
-            UpdatePlayerList();
-
-            // Mostra botão de start apenas para Master Client
-            startGameButton.SetActive(PhotonNetwork.IsMasterClient);
+            // Atualiza informações da sala
+            UpdateRoomUI();
         }
 
         public override void OnJoinRoomFailed(short returnCode, string message)
@@ -223,27 +230,32 @@ namespace QuantumHeist.Network
             Debug.LogError($"Falha ao entrar na sala. Código: {returnCode}, Mensagem: {message}");
         }
 
+        public override void OnJoinRandomFailed(short returnCode, string message)
+        {
+            UpdateConnectionStatus("Nenhuma sala disponível. Crie uma!");
+            Debug.LogWarning($"Nenhuma sala aleatória disponível. Mensagem: {message}");
+        }
+
         public override void OnLeftRoom()
         {
-            UpdateConnectionStatus("Saiu da sala");
             Debug.Log("Saiu da sala");
 
+            // Volta para o lobby
             lobbyPanel.SetActive(true);
             roomPanel.SetActive(false);
+            UpdateConnectionStatus("No lobby - Pronto para jogar!");
         }
 
         public override void OnPlayerEnteredRoom(Player newPlayer)
         {
-            Debug.Log($"Jogador '{newPlayer.NickName}' entrou na sala");
-            UpdatePlayerList();
-            UpdateRoomStatus();
+            Debug.Log($"Jogador entrou: {newPlayer.NickName}");
+            UpdateRoomUI();
         }
 
         public override void OnPlayerLeftRoom(Player otherPlayer)
         {
-            Debug.Log($"Jogador '{otherPlayer.NickName}' saiu da sala");
-            UpdatePlayerList();
-            UpdateRoomStatus();
+            Debug.Log($"Jogador saiu: {otherPlayer.NickName}");
+            UpdateRoomUI();
         }
 
         public override void OnMasterClientSwitched(Player newMasterClient)
@@ -273,13 +285,13 @@ namespace QuantumHeist.Network
                 }
             }
 
-            // Atualiza UI da lista de salas
-            UpdateRoomList();
+            // Atualiza UI
+            UpdateRoomListUI();
         }
 
         #endregion
 
-        #region Atualização de UI
+        #region UI Updates
 
         /// <summary>
         /// Atualiza o texto de status de conexão
@@ -288,31 +300,14 @@ namespace QuantumHeist.Network
         {
             if (connectionStatusText != null)
             {
-                connectionStatusText.text = status;
-            }
-        }
-
-        /// <summary>
-        /// Atualiza o texto de status da sala atual
-        /// </summary>
-        private void UpdateRoomStatus()
-        {
-            if (roomStatusText != null && PhotonNetwork.InRoom)
-            {
-                string masterClientName = PhotonNetwork.MasterClient.NickName;
-                int playerCount = PhotonNetwork.CurrentRoom.PlayerCount;
-                int maxPlayers = PhotonNetwork.CurrentRoom.MaxPlayers;
-
-                roomStatusText.text = $"Sala: {PhotonNetwork.CurrentRoom.Name}\n" +
-                                     $"Host: {masterClientName}\n" +
-                                     $"Jogadores: {playerCount}/{maxPlayers}";
+                connectionStatusText.text = $"Status: {status}";
             }
         }
 
         /// <summary>
         /// Atualiza a lista visual de salas disponíveis
         /// </summary>
-        private void UpdateRoomList()
+        private void UpdateRoomListUI()
         {
             // Limpa lista atual
             foreach (Transform child in roomListContent)
@@ -321,51 +316,56 @@ namespace QuantumHeist.Network
             }
 
             // Cria item para cada sala disponível
-            foreach (var roomEntry in cachedRoomList)
+            foreach (RoomInfo room in cachedRoomList.Values)
             {
-                RoomInfo room = roomEntry.Value;
-
-                // Ignora salas fechadas ou cheias
-                if (!room.IsOpen || room.PlayerCount >= room.MaxPlayers)
-                    continue;
-
-                GameObject roomItem = Instantiate(roomListItemPrefab, roomListContent);
-                RoomListItem roomListItem = roomItem.GetComponent<RoomListItem>();
-
-                if (roomListItem != null)
+                if (room.PlayerCount < room.MaxPlayers && room.IsOpen)
                 {
-                    roomListItem.SetupRoom(room, this);
+                    GameObject listItem = Instantiate(roomListItemPrefab, roomListContent);
+                    RoomListItem itemScript = listItem.GetComponent<RoomListItem>();
+                    itemScript.SetupRoom(room, this);
                 }
             }
         }
 
         /// <summary>
-        /// Atualiza a lista visual de jogadores na sala
+        /// Atualiza informações da sala atual
         /// </summary>
-        private void UpdatePlayerList()
+        private void UpdateRoomUI()
         {
-            if (!PhotonNetwork.InRoom)
-                return;
+            if (!PhotonNetwork.InRoom) return;
 
+            // Atualiza título da sala
+            roomTitleText.text = $"Sala: {PhotonNetwork.CurrentRoom.Name}";
+
+            // Atualiza contador de jogadores
+            playersInRoomText.text = $"Jogadores: {PhotonNetwork.CurrentRoom.PlayerCount}/{PhotonNetwork.CurrentRoom.MaxPlayers}";
+
+            // Atualiza visibilidade do botão Start (apenas Master Client vê)
+            startGameButton.SetActive(PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2);
+
+            // Atualiza lista de jogadores
+            UpdatePlayerListUI();
+        }
+
+        /// <summary>
+        /// Atualiza a lista de jogadores na sala
+        /// </summary>
+        private void UpdatePlayerListUI()
+        {
             // Limpa lista atual
             foreach (Transform child in playerListContent)
             {
                 Destroy(child.gameObject);
             }
 
-            // Cria item para cada jogador na sala
-            foreach (var playerEntry in PhotonNetwork.CurrentRoom.Players)
+            // Cria item para cada jogador
+            foreach (Player player in PhotonNetwork.PlayerList)
             {
-                Player player = playerEntry.Value;
+                GameObject listItem = Instantiate(playerListItemPrefab, playerListContent);
+                TMP_Text playerText = listItem.GetComponent<TMP_Text>();
 
-                GameObject playerItem = Instantiate(playerListItemPrefab, playerListContent);
-                TMP_Text playerText = playerItem.GetComponentInChildren<TMP_Text>();
-
-                if (playerText != null)
-                {
-                    string prefix = player.IsMasterClient ? "[HOST] " : "";
-                    playerText.text = prefix + player.NickName;
-                }
+                string prefix = player.IsMasterClient ? "[HOST] " : "";
+                playerText.text = prefix + player.NickName;
             }
         }
 

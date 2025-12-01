@@ -36,14 +36,11 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
-        /// Callback quando botão de entrar é clicado
+        /// Callback quando o botão de entrar é clicado
         /// </summary>
         private void OnJoinButtonClicked()
         {
-            if (networkManager != null && roomInfo != null)
-            {
-                networkManager.JoinRoom(roomInfo.Name);
-            }
+            networkManager.JoinRoom(roomInfo.Name);
         }
     }
 }
