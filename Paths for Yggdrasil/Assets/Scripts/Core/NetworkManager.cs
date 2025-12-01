@@ -104,6 +104,25 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
+        /// Entra em uma sala específica digitada pelo jogador
+        /// </summary>
+        public void JoinSpecificRoom()
+        {
+            if (string.IsNullOrEmpty(roomNameInput.text))
+            {
+                UpdateConnectionStatus("ERRO: Digite o nome da sala!");
+                return;
+            }
+
+            // Salva nickname
+            PlayerPrefs.SetString("PlayerNickname", nicknameInput.text);
+            PhotonNetwork.NickName = nicknameInput.text;
+
+            UpdateConnectionStatus($"Procurando sala '{roomNameInput.text}'...");
+            PhotonNetwork.JoinRoom(roomNameInput.text);
+        }
+
+        /// <summary>
         /// Entra em uma sala específica pelo nome
         /// </summary>
         public void JoinRoom(string roomName)
