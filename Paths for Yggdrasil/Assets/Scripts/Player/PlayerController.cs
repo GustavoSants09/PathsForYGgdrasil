@@ -92,7 +92,7 @@ namespace QuantumHeist.Game
         #region Setup
 
         /// <summary>
-        /// Configura a câmera para o jogador local
+        /// Configura a câmera em primeira pessoa para o jogador local
         /// </summary>
         private void SetupCamera()
         {
@@ -103,7 +103,9 @@ namespace QuantumHeist.Game
             {
                 GameObject cameraObj = new GameObject("PlayerCamera");
                 cameraObj.transform.SetParent(transform);
-                cameraObj.transform.localPosition = new Vector3(0, 1.6f, 0); // Altura dos olhos
+
+                // Posiciona câmera DENTRO do modelo (primeira pessoa)
+                cameraObj.transform.localPosition = new Vector3(0, 0.6f, 0); // Altura da "cabeça"
                 cameraObj.transform.localRotation = Quaternion.identity;
 
                 playerCamera = cameraObj.AddComponent<Camera>();
@@ -117,24 +119,44 @@ namespace QuantumHeist.Game
             }
 
             playerCamera.enabled = true;
+
+            // Esconde o modelo visual do próprio jogador (opcional para primeira pessoa)
+            HideLocalPlayerModel();
+        }
+
+        /// <summary>
+        /// Esconde o modelo do jogador local para não aparecer na câmera de primeira pessoa
+        /// </summary>
+        private void HideLocalPlayerModel()
+        {
+            // Procura todos os MeshRenderers no jogador
+            MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>();
+
+            foreach (MeshRenderer renderer in renderers)
+            {
+                // Desabilita apenas para a câmera local (Layer)
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+            }
         }
 
         /// <summary>
         /// Cria texto com nome do jogador acima da cabeça
+        /// CORRIGIDO: Billboard agora rotaciona corretamente
         /// </summary>
         private void SetPlayerName()
         {
             GameObject nameTextObj = new GameObject("PlayerNameTag");
             nameTextObj.transform.SetParent(transform);
-            nameTextObj.transform.localPosition = new Vector3(0, 2.5f, 0);
+            nameTextObj.transform.localPosition = new Vector3(0, 1.2f, 0); // Acima da "cabeça"
 
             // Cria TextMeshPro 3D
             TextMeshPro nameText = nameTextObj.AddComponent<TextMeshPro>();
             nameText.text = photonView.Owner.NickName;
-            nameText.fontSize = 4;
+            nameText.fontSize = 3;
             nameText.alignment = TextAlignmentOptions.Center;
             nameText.color = Color.white;
 
+            // Configura para render
             // Sempre olha para câmera principal
             Billboard billboard = nameTextObj.AddComponent<Billboard>();
         }
@@ -229,23 +251,53 @@ namespace QuantumHeist.Game
     }
 
     /// <summary>
-    /// Componente que faz o texto sempre olhar para a câmera principal
+    /// Componente que faz o texto sempre aparecer de frente para quem está olhando
+    /// Corrige o problema de texto aparecer de lado ou invertido
     /// </summary>
     public class Billboard : MonoBehaviour
     {
-        private Camera mainCamera;
+        private Transform cameraTransform;
 
         private void Start()
         {
-            mainCamera = Camera.main;
+            // Aguarda a câmera principal ser criada
+            StartCoroutine(FindMainCamera());
+        }
+
+        private System.Collections.IEnumerator FindMainCamera()
+        {
+            // Aguarda até que a câmera principal exista
+            while (Camera.main == null)
+            {
+                yield return new WaitForSeconds(0.1f);
+            }
+
+            cameraTransform = Camera.main.transform;
         }
 
         private void LateUpdate()
         {
-            if (mainCamera != null)
+            if (cameraTransform == null)
             {
-                transform.LookAt(transform.position + mainCamera.transform.rotation * Vector3.forward,
-                                 mainCamera.transform.rotation * Vector3.up);
+                // Tenta encontrar a câmera novamente se perdeu a referência
+                Camera mainCam = Camera.main;
+                if (mainCam != null)
+                    cameraTransform = mainCam.transform;
+                return;
+            }
+
+            // Faz o texto sempre olhar diretamente para a câmera
+            // Calcula direção da câmera para o texto
+            Vector3 directionToCamera = cameraTransform.position - transform.position;
+
+            // Mantém apenas rotação horizontal (Y-axis), ignora vertical
+            directionToCamera.y = 0;
+
+            // Se houver direção válida, rotaciona para ela
+            if (directionToCamera.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(directionToCamera);
+                transform.rotation = targetRotation;
             }
         }
     }
