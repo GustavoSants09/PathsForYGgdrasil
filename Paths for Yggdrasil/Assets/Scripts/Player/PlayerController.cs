@@ -1,12 +1,13 @@
 using UnityEngine;
 using Photon.Pun;
 using TMPro;
+using System.Collections;
 
 namespace QuantumHeist.Game
 {
     /// <summary>
     /// Controla movimentação básica do jogador com sincronização via Photon
-    /// Versão simplificada focada apenas em movimento WASD e mouse look
+    /// Inclui sistema de coleta de cristais com pontuação individual e boost de velocidade
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(PhotonView))]
@@ -20,6 +21,11 @@ namespace QuantumHeist.Game
         [Header("Mouse Look Settings")]
         [SerializeField] private float mouseSensitivity = 2f;
         [SerializeField] private float maxLookAngle = 80f;
+
+        [Header("Crystal Collection")]
+        [SerializeField] private int playerScore = 0;
+        private float originalSpeed;
+        private Coroutine speedBoostCoroutine;
 
         [Header("Components")]
         private CharacterController characterController;
@@ -44,6 +50,9 @@ namespace QuantumHeist.Game
 
         private void Start()
         {
+            // Salva velocidade original para boost temporário
+            originalSpeed = movementSpeed;
+
             // Configura apenas para o jogador local
             if (photonView.IsMine)
             {
@@ -156,7 +165,6 @@ namespace QuantumHeist.Game
             nameText.alignment = TextAlignmentOptions.Center;
             nameText.color = Color.white;
 
-            // Configura para render
             // Sempre olha para câmera principal
             Billboard billboard = nameTextObj.AddComponent<Billboard>();
         }
@@ -178,7 +186,7 @@ namespace QuantumHeist.Game
             Vector3 moveDirection = transform.right * horizontal + transform.forward * vertical;
             moveDirection.Normalize();
 
-            // Aplica velocidade
+            // Aplica velocidade (usa movementSpeed que pode estar com boost)
             float currentSpeed = movementSpeed;
             if (Input.GetKey(KeyCode.LeftShift))
             {
@@ -226,6 +234,91 @@ namespace QuantumHeist.Game
 
         #endregion
 
+        #region Crystal Collection System
+
+        /// <summary>
+        /// Chamado quando jogador coleta um cristal
+        /// </summary>
+        public void CollectCrystal(int points, float speedMultiplier, float duration)
+        {
+            // Adiciona pontos
+            playerScore += points;
+
+            Debug.Log($"[PlayerController] {photonView.Owner.NickName} collected crystal! Score: {playerScore}");
+
+            // Atualiza UI (se houver)
+            UpdateScoreUI();
+
+            // Aplica boost de velocidade
+            ApplySpeedBoost(speedMultiplier, duration);
+
+            // Feedback visual
+            ShowCollectFeedback(points);
+        }
+
+        /// <summary>
+        /// Aplica boost temporário de velocidade
+        /// </summary>
+        private void ApplySpeedBoost(float multiplier, float duration)
+        {
+            // Cancela boost anterior se existir
+            if (speedBoostCoroutine != null)
+            {
+                StopCoroutine(speedBoostCoroutine);
+            }
+
+            speedBoostCoroutine = StartCoroutine(SpeedBoostRoutine(multiplier, duration));
+        }
+
+        /// <summary>
+        /// Coroutine do boost de velocidade
+        /// </summary>
+        private IEnumerator SpeedBoostRoutine(float multiplier, float duration)
+        {
+            // Aplica boost
+            movementSpeed = originalSpeed * multiplier;
+
+            Debug.Log($"[PlayerController] Speed boost activated! Speed: {movementSpeed}");
+
+            // Aguarda duração
+            yield return new WaitForSeconds(duration);
+
+            // Restaura velocidade
+            movementSpeed = originalSpeed;
+
+            Debug.Log($"[PlayerController] Speed boost ended. Speed: {movementSpeed}");
+
+            speedBoostCoroutine = null;
+        }
+
+        /// <summary>
+        /// Atualiza UI de pontuação
+        /// </summary>
+        private void UpdateScoreUI()
+        {
+            // TODO: Implementar quando houver UI
+            // Exemplo: scoreText.text = $"Score: {playerScore}";
+        }
+
+        /// <summary>
+        /// Mostra feedback visual de coleta
+        /// </summary>
+        private void ShowCollectFeedback(int points)
+        {
+            // TODO: Implementar feedback visual
+            // Exemplo: Texto flutuante "+10", flash na tela, etc.
+        }
+
+        /// <summary>
+        /// Getter para pontuação (útil para UI e placar)
+        /// </summary>
+        public int GetScore()
+        {
+            return playerScore;
+        }
+
+        #endregion
+
         #region Photon Synchronization
 
         /// <summary>
@@ -264,7 +357,7 @@ namespace QuantumHeist.Game
             StartCoroutine(FindMainCamera());
         }
 
-        private System.Collections.IEnumerator FindMainCamera()
+        private IEnumerator FindMainCamera()
         {
             // Aguarda até que a câmera principal exista
             while (Camera.main == null)
