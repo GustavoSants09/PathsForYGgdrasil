@@ -1,10 +1,10 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
 using Photon.Pun;
 using System.Collections;
 
 /// <summary>
-/// Gerenciador de spawn de cristais em posiÁıes aleatÛrias
-/// Apenas o MasterClient spawna para evitar duplicaÁ„o
+/// Gerenciador de spawn de cristais em posi√ß√µes aleat√≥rias
+/// Apenas o MasterClient spawna para evitar duplica√ß√£o
 /// </summary>
 public class CrystalSpawner : MonoBehaviourPunCallbacks
 {
@@ -35,7 +35,7 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// Rotina de spawn contÌnuo de cristais
+    /// Rotina de spawn cont√≠nuo de cristais
     /// </summary>
     private IEnumerator SpawnRoutine()
     {
@@ -45,7 +45,7 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
         {
             yield return new WaitForSeconds(spawnInterval);
 
-            // SÛ spawna se n„o atingiu o m·ximo
+            // S√≥ spawna se n√£o atingiu o m√°ximo
             if (currentCrystalCount < maxCrystalsInScene)
             {
                 SpawnCrystal();
@@ -54,7 +54,7 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// Spawna um cristal em posiÁ„o aleatÛria v·lida
+    /// Spawna um cristal em posi√ß√£o aleat√≥ria v√°lida
     /// </summary>
     private void SpawnCrystal()
     {
@@ -85,7 +85,7 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// Calcula posiÁ„o aleatÛria v·lida para spawn
+    /// Calcula posi√ß√£o aleat√≥ria v√°lida para spawn
     /// </summary>
     private Vector3 GetRandomSpawnPosition()
     {
@@ -93,17 +93,17 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
 
         for (int i = 0; i < maxAttempts; i++)
         {
-            // PosiÁ„o aleatÛria dentro da ·rea
+            // Posi√ß√£o aleat√≥ria dentro da √°rea
             float randomX = Random.Range(-spawnAreaSize.x / 2, spawnAreaSize.x / 2);
             float randomZ = Random.Range(-spawnAreaSize.z / 2, spawnAreaSize.z / 2);
 
             Vector3 randomPosition = spawnAreaCenter + new Vector3(randomX, spawnHeight, randomZ);
 
-            // Tenta encontrar o ch„o abaixo
+            // Tenta encontrar o ch√£o abaixo
             RaycastHit hit;
             if (Physics.Raycast(randomPosition + Vector3.up * 10f, Vector3.down, out hit, maxGroundCheckDistance, groundLayer))
             {
-                // Spawna um pouco acima do ch„o
+                // Spawna um pouco acima do ch√£o
                 return hit.point + Vector3.up * spawnHeight;
             }
         }
@@ -113,7 +113,7 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// Callback quando cristal È destruÌdo
+    /// Callback quando cristal √© destru√≠do
     /// </summary>
     public void OnCrystalDestroyed()
     {
@@ -122,7 +122,7 @@ public class CrystalSpawner : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// Visualiza ·rea de spawn no editor
+    /// Visualiza √°rea de spawn no editor
     /// </summary>
     private void OnDrawGizmosSelected()
     {
