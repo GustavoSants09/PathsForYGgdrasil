@@ -78,7 +78,12 @@ MonoBehaviour:
   gravity: -9.81
   mouseSensitivity: 2
   maxLookAngle: 80
+  dashDistance: 10
+  dashDuration: 0.2
+  dashCooldown: 4
   playerScore: 0
+  dashParticles: {fileID: 0}
+  dashSound: {fileID: 0}
 --- !u!114 &7032617556599687637
 MonoBehaviour:
   m_ObjectHideFlags: 0

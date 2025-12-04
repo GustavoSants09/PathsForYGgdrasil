@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Photon.Pun;
 using QuantumHeist.Game;
 
 /// <summary>
-/// Sistema de cristal colet�vel que concede pontos e boost de velocidade
+/// Sistema de cristal coletável que concede pontos e boost de velocidade
 /// Sincronizado via Photon para multiplayer
 /// </summary>
 public class Crystal : MonoBehaviourPunCallbacks
@@ -18,37 +18,85 @@ public class Crystal : MonoBehaviourPunCallbacks
     [SerializeField] private ParticleSystem collectEffect;
     [SerializeField] private AudioClip collectSound;
 
+    [Header("Bobbing Animation")]
+    [SerializeField] private float bobbingHeight = 0.3f;
+    [SerializeField] private float bobbingSpeed = 2f;
+
+    private Vector3 startPosition;
+    private bool isCollected = false;
+
+    private void Start()
+    {
+        startPosition = transform.position;
+    }
+
     private void Update()
     {
-        // Rota��o visual do cristal
+        if (isCollected) return;
+
+        // Rotação visual do cristal
         transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
+
+        // Animação de flutuação (bobbing)
+        float newY = startPosition.y + Mathf.Sin(Time.time * bobbingSpeed) * bobbingHeight;
+        transform.position = new Vector3(transform.position.x, newY, transform.position.z);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Apenas o jogador local pode coletar (evita coleta duplicada)
-        if (!PhotonNetwork.IsConnected || photonView.IsMine || PhotonNetwork.IsMasterClient)
+        // Evita coleta duplicada
+        if (isCollected)
+            return;
+
+        // Verifica se é um jogador
+        PlayerController player = other.GetComponent<PlayerController>();
+        if (player == null)
+            return;
+
+        // ✅ CORREÇÃO CRÍTICA: Apenas o dono do PlayerController pode coletar
+        PhotonView playerPhotonView = player.GetComponent<PhotonView>();
+        if (playerPhotonView == null || !playerPhotonView.IsMine)
         {
-            PlayerController player = other.GetComponent<PlayerController>();
+            Debug.Log($"[Crystal] Ignorando colisão - não é o jogador local");
+            return;
+        }
 
-            if (player != null)
-            {
-                // Chama coleta no jogador
-                player.CollectCrystal(pointsValue, speedBoostMultiplier, speedBoostDuration);
+        // Marca como coletado
+        isCollected = true;
 
-                // Efeitos visuais/sonoros
-                PlayCollectEffects();
+        Debug.Log($"[Crystal] 💎 Coletado por {player.photonView.Owner.NickName}!");
 
-                // Destroi o cristal na rede
-                if (PhotonNetwork.IsConnected && photonView.IsMine)
-                {
-                    PhotonNetwork.Destroy(gameObject);
-                }
-                else
-                {
-                    Destroy(gameObject);
-                }
-            }
+        // Chama coleta no jogador LOCAL
+        player.CollectCrystal(pointsValue, speedBoostMultiplier, speedBoostDuration);
+
+        // Efeitos visuais/sonoros
+        PlayCollectEffects();
+
+        // ✅ Destroi o cristal via RPC para sincronizar com todos
+        if (PhotonNetwork.IsConnected)
+        {
+            photonView.RPC("RPC_DestroyCrystal", RpcTarget.AllBuffered);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    /// <summary>
+    /// RPC que destroi o cristal em todos os clientes
+    /// </summary>
+    [PunRPC]
+    private void RPC_DestroyCrystal()
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.Destroy(gameObject);
+        }
+        else
+        {
+            // Clientes apenas desabilitam visualmente
+            gameObject.SetActive(false);
         }
     }
 
@@ -57,7 +105,7 @@ public class Crystal : MonoBehaviourPunCallbacks
     /// </summary>
     private void PlayCollectEffects()
     {
-        // Part�culas
+        // Partículas
         if (collectEffect != null)
         {
             ParticleSystem effect = Instantiate(collectEffect, transform.position, Quaternion.identity);
