@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
@@ -33,7 +33,7 @@ namespace QuantumHeist.Game
         private float verticalVelocity = 0f;
         private float cameraPitch = 0f;
 
-        // Sincroniza��o de rede
+        // Sincronização de rede
         private Vector3 networkPosition;
         private Quaternion networkRotation;
 
@@ -61,7 +61,7 @@ namespace QuantumHeist.Game
                 if (playerCamera != null)
                     playerCamera.enabled = false;
 
-                // NOVO: Carrega score inicial de outros jogadores
+                // Carrega score inicial de outros jogadores
                 LoadScoreFromCustomProperties();
             }
 
@@ -106,7 +106,7 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// NOVO: Carrega score de outros jogadores das CustomProperties
+        /// Carrega score de outros jogadores das CustomProperties
         /// </summary>
         private void LoadScoreFromCustomProperties()
         {
@@ -228,20 +228,35 @@ namespace QuantumHeist.Game
             // Atualiza score local
             playerScore += points;
 
-            // CR�TICO: Sincroniza com Photon CustomProperties
+            // CRÍTICO: Sincroniza com Photon CustomProperties
             ExitGames.Client.Photon.Hashtable scoreProps = new ExitGames.Client.Photon.Hashtable
             {
                 { "Score", playerScore }
             };
             PhotonNetwork.LocalPlayer.SetCustomProperties(scoreProps);
 
-            Debug.Log($"[PlayerController] {photonView.Owner.NickName} coletou cristal! Score: {playerScore}");
+            Debug.Log($"[PlayerController] {photonView.Owner.NickName} coletou cristal! Novo Score: {playerScore}");
 
             // Aplica boost de velocidade
             ApplySpeedBoost(speedMultiplier, duration);
 
             // Feedback visual
             ShowCollectFeedback(points);
+
+            // FORÇA ATUALIZAÇÃO DO SCOREBOARD
+            UpdateAllScoreboards();
+        }
+
+        /// <summary>
+        /// NOVO: Força atualização manual do scoreboard
+        /// </summary>
+        private void UpdateAllScoreboards()
+        {
+            UIManager[] uiManagers = FindObjectsOfType<UIManager>();
+            foreach (UIManager ui in uiManagers)
+            {
+                ui.UpdateAllPlayerScores();
+            }
         }
 
         private void ApplySpeedBoost(float multiplier, float duration)
@@ -282,20 +297,29 @@ namespace QuantumHeist.Game
         #region Photon Callbacks
 
         /// <summary>
-        /// NOVO: Callback chamado quando as CustomProperties de um jogador s�o alteradas
-        /// Sincroniza o score em todos os clientes
+        /// Callback chamado quando as CustomProperties de QUALQUER jogador são alteradas
         /// </summary>
         public override void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
         {
-            // Verifica se � o dono deste PlayerController
+            Debug.Log($"[PlayerController] OnPlayerPropertiesUpdate chamado para {targetPlayer.NickName}");
+            Debug.Log($"[PlayerController] Meu dono: {photonView.Owner.NickName}, Target: {targetPlayer.NickName}");
+
+            // Verifica se é o dono deste PlayerController
             if (targetPlayer != photonView.Owner)
+            {
+                Debug.Log($"[PlayerController] Não é meu dono, ignorando");
                 return;
+            }
 
             // Verifica se o Score foi alterado
             if (changedProps.ContainsKey("Score"))
             {
+                int oldScore = playerScore;
                 playerScore = (int)changedProps["Score"];
-                Debug.Log($"[PlayerController] Score atualizado para {photonView.Owner.NickName}: {playerScore}");
+                Debug.Log($"[PlayerController] ✅ Score atualizado para {photonView.Owner.NickName}: {oldScore} → {playerScore}");
+
+                // Atualiza UI
+                UpdateAllScoreboards();
             }
         }
 
@@ -309,11 +333,13 @@ namespace QuantumHeist.Game
             {
                 stream.SendNext(transform.position);
                 stream.SendNext(transform.rotation);
+                stream.SendNext(playerScore); // SINCRONIZA SCORE TAMBÉM
             }
             else
             {
                 networkPosition = (Vector3)stream.ReceiveNext();
                 networkRotation = (Quaternion)stream.ReceiveNext();
+                playerScore = (int)stream.ReceiveNext(); // RECEBE SCORE
             }
         }
 

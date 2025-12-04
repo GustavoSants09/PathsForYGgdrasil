@@ -96,7 +96,7 @@ private System.Collections.IEnumerator UpdateScoresRoutine()
 /// <summary>
 /// Atualiza UI com pontuações de todos os jogadores
 /// </summary>
-private void UpdateAllPlayerScores()
+public void UpdateAllPlayerScores()
 {
     if (!PhotonNetwork.InRoom) return;
 
