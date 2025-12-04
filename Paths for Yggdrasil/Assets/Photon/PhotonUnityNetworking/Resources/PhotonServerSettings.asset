@@ -56,6 +56,7 @@ MonoBehaviour:
   - RPC_GameOver
   - RPC_PlayDashEffect
   - RPC_StealPoints
+  - RPC_RequestGameOver
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1
