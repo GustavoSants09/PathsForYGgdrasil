@@ -231,7 +231,7 @@ namespace QuantumHeist.Game
             // ✅ Chama GameManager para registrar voto
             if (gameManager != null)
             {
-                gameManager.PlayAgain();
+                gameManager.PlayAgain(); //PhotonNetwork.LoadLevel("GameScene");
             }
 
             Debug.Log($"[UIManager] {PhotonNetwork.LocalPlayer.NickName} clicou em REMATCH");

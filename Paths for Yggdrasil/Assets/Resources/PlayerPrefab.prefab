@@ -89,6 +89,10 @@ MonoBehaviour:
   stealPercentage: 0.2
   stunDuration: 1.5
   minPointsToSteal: 10
+  slowZonePrefab: {fileID: 8736899464172686752, guid: 7c949e3edf0ae754aac1bba7c9c2335c,
+    type: 3}
+  slowZoneCooldown: 8
+  slowZoneKey: 101
   playerScore: 0
   dashParticles: {fileID: 0}
   dashSound: {fileID: 0}

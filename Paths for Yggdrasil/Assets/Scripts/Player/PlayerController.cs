@@ -3,6 +3,7 @@ using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace QuantumHeist.Game
 {
@@ -28,6 +29,11 @@ namespace QuantumHeist.Game
         [SerializeField] private float stealPercentage = 0.2f; // 20% dos pontos
         [SerializeField] private float stunDuration = 1.5f;
         [SerializeField] private int minPointsToSteal = 10; // Mínimo para roubar
+
+        [Header("Slow Zone Settings")]
+        [SerializeField] private GameObject slowZonePrefab;
+        [SerializeField] private float slowZoneCooldown = 8f;
+        [SerializeField] private KeyCode slowZoneKey = KeyCode.E;
 
         [Header("Crystal Collection")]
         [SerializeField] private int playerScore = 0;
@@ -61,6 +67,12 @@ namespace QuantumHeist.Game
         // Stun State
         private bool isStunned = false;
         private Coroutine stunCoroutine;
+
+        // Slow Zone State
+        private bool canDeploySlowZone = true;
+        private float slowZoneCooldownTimer = 0f;
+        private GameObject activeSlowZone = null;
+        private Dictionary<SlowZone, float> activeSlowEffects = new Dictionary<SlowZone, float>();
 
         // Sincronização de rede
         private Vector3 networkPosition;
@@ -119,6 +131,8 @@ namespace QuantumHeist.Game
             HandleMovement();
             HandleDash();
             UpdateDashTimer();
+            HandleSlowZone();
+            UpdateSlowZoneTimer();
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -206,7 +220,7 @@ namespace QuantumHeist.Game
 
         private void HandleMovement()
         {
-            // ✅ Bloqueia movimento durante dash OU atordoamento
+            // Bloqueia movimento durante dash OU atordoamento
             if (isDashing || isStunned)
                 return;
 
@@ -243,7 +257,7 @@ namespace QuantumHeist.Game
 
         private void HandleMouseLook()
         {
-            // ✅ Bloqueia rotação da câmera durante atordoamento
+            // Bloqueia rotação da câmera durante atordoamento
             if (isStunned)
                 return;
 
@@ -267,7 +281,7 @@ namespace QuantumHeist.Game
 
         private void HandleDash()
         {
-            // ✅ Bloqueia dash durante atordoamento
+            // Bloqueia dash durante atordoamento
             if (Input.GetKeyDown(KeyCode.Space) && canDash && !isDashing && !isStunned && characterController.isGrounded)
             {
                 StartCoroutine(PerformDash());
@@ -299,7 +313,7 @@ namespace QuantumHeist.Game
                 float step = dashSpeed * Time.deltaTime;
                 characterController.Move(dashDirection * step);
 
-                // ✅ DETECÇÃO DE COLISÃO COM OUTROS JOGADORES
+                // DETECÇÃO DE COLISÃO COM OUTROS JOGADORES
                 CheckDashCollision();
 
                 elapsedTime += Time.deltaTime;
@@ -310,9 +324,6 @@ namespace QuantumHeist.Game
             Debug.Log($"[PlayerController] ✅ Dash finalizado! Cooldown: {dashCooldown}s");
         }
 
-        /// <summary>
-        /// ✅ NOVO: Detecta colisão do dash com outros jogadores
-        /// </summary>
         private void CheckDashCollision()
         {
             // Raycast esférico para detectar jogadores próximos
@@ -328,16 +339,13 @@ namespace QuantumHeist.Game
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
                 if (otherPlayer != null && otherPlayer.photonView != null)
                 {
-                    // ✅ Processa roubo de pontos
+                    // Processa roubo de pontos
                     ProcessPointSteal(otherPlayer);
                     break; // Apenas um roubo por dash
                 }
             }
         }
 
-        /// <summary>
-        /// ✅ NOVO: Processa o roubo de pontos
-        /// </summary>
         private void ProcessPointSteal(PlayerController victim)
         {
             if (!photonView.IsMine) return;
@@ -362,15 +370,12 @@ namespace QuantumHeist.Game
 
             Debug.Log($"[PlayerController] 💰 Roubando {stolenPoints} pontos de {victim.photonView.Owner.NickName}!");
 
-            // ✅ Chama RPC para sincronizar roubo
+            // Chama RPC para sincronizar roubo
             photonView.RPC("RPC_StealPoints", RpcTarget.AllBuffered,
                 victim.photonView.ViewID,
                 stolenPoints);
         }
 
-        /// <summary>
-        /// ✅ RPC que sincroniza o roubo de pontos
-        /// </summary>
         [PunRPC]
         private void RPC_StealPoints(int victimViewID, int stolenPoints)
         {
@@ -386,7 +391,7 @@ namespace QuantumHeist.Game
 
             Debug.Log($"[PlayerController] 🎯 RPC_StealPoints: {attacker.NickName} roubou {stolenPoints} de {victimPlayer.NickName}");
 
-            // ✅ Atualiza scores nas CustomProperties (apenas Master Client)
+            // Atualiza scores nas CustomProperties (apenas Master Client)
             if (PhotonNetwork.IsMasterClient)
             {
                 // Remove pontos da vítima
@@ -422,13 +427,13 @@ namespace QuantumHeist.Game
                 Debug.Log($"[PlayerController] 📊 Scores atualizados: {victimPlayer.NickName}={newVictimScore}, {attacker.NickName}={newAttackerScore}");
             }
 
-            // ✅ Aplica atordoamento na vítima
+            // Aplica atordoamento na vítima
             if (victim.photonView.IsMine)
             {
                 victim.ApplyStun();
             }
 
-            // ✅ Efeitos visuais
+            // Efeitos visuais
             PlayStealEffects(victim.transform.position);
 
             // Atualiza UI
@@ -484,9 +489,6 @@ namespace QuantumHeist.Game
 
         #region Stun System
 
-        /// <summary>
-        /// ✅ NOVO: Aplica atordoamento no jogador
-        /// </summary>
         public void ApplyStun()
         {
             if (!photonView.IsMine) return;
@@ -499,9 +501,6 @@ namespace QuantumHeist.Game
             stunCoroutine = StartCoroutine(StunRoutine());
         }
 
-        /// <summary>
-        /// ✅ NOVO: Corrotina de atordoamento
-        /// </summary>
         private IEnumerator StunRoutine()
         {
             isStunned = true;
@@ -535,9 +534,6 @@ namespace QuantumHeist.Game
             stunCoroutine = null;
         }
 
-        /// <summary>
-        /// Retorna se o jogador está atordoado
-        /// </summary>
         public bool IsStunned()
         {
             return isStunned;
@@ -545,11 +541,157 @@ namespace QuantumHeist.Game
 
         #endregion
 
-        #region Visual Effects
+        #region Slow Zone System
+
+        private void HandleSlowZone()
+        {
+            if (Input.GetKeyDown(slowZoneKey) && canDeploySlowZone && !isStunned)
+            {
+                DeploySlowZone();
+            }
+        }
+
+        private void DeploySlowZone()
+        {
+            if (slowZonePrefab == null)
+            {
+                Debug.LogError("[PlayerController] ❌ Slow Zone Prefab não está atribuído!");
+                return;
+            }
+
+            // Remove zona anterior se existir
+            if (activeSlowZone != null)
+            {
+                if (PhotonNetwork.IsMasterClient)
+                {
+                    PhotonNetwork.Destroy(activeSlowZone);
+                }
+                activeSlowZone = null;
+            }
+
+            // Calcula posição de spawn (à frente do jogador)
+            Vector3 spawnPosition = transform.position + transform.forward * 2f;
+            spawnPosition.y = transform.position.y; // Mantém no chão
+
+            // Instancia via Photon
+            GameObject zone = PhotonNetwork.Instantiate(
+                slowZonePrefab.name,
+                spawnPosition,
+                Quaternion.identity
+            );
+
+            // Inicializa zona com o dono
+            SlowZone slowZone = zone.GetComponent<SlowZone>();
+            if (slowZone != null)
+            {
+                slowZone.Initialize(photonView.ViewID);
+            }
+
+            activeSlowZone = zone;
+
+            // Inicia cooldown
+            canDeploySlowZone = false;
+            slowZoneCooldownTimer = slowZoneCooldown;
+
+            Debug.Log($"[PlayerController] 🟣 {photonView.Owner.NickName} deployou Zona de Desaceleração!");
+        }
+
+        private void UpdateSlowZoneTimer()
+        {
+            if (!canDeploySlowZone)
+            {
+                slowZoneCooldownTimer -= Time.deltaTime;
+                if (slowZoneCooldownTimer <= 0)
+                {
+                    canDeploySlowZone = true;
+                    slowZoneCooldownTimer = 0f;
+                    Debug.Log("[PlayerController] 🟣 Slow Zone disponível!");
+                }
+            }
+        }
 
         /// <summary>
-        /// ✅ NOVO: Efeitos visuais de roubo
+        /// Aplica efeito de desaceleração de uma zona
         /// </summary>
+        public void ApplySlowEffect(float slowPercentage, SlowZone source)
+        {
+            if (!photonView.IsMine) return;
+
+            if (!activeSlowEffects.ContainsKey(source))
+            {
+                activeSlowEffects[source] = slowPercentage;
+                UpdateMovementSpeed();
+
+                Debug.Log($"[PlayerController] 🐌 Desaceleração aplicada: {slowPercentage * 100}%");
+            }
+        }
+
+        /// <summary>
+        /// Remove efeito de desaceleração de uma zona
+        /// </summary>
+        public void RemoveSlowEffect(SlowZone source)
+        {
+            if (!photonView.IsMine) return;
+
+            if (activeSlowEffects.ContainsKey(source))
+            {
+                activeSlowEffects.Remove(source);
+                UpdateMovementSpeed();
+
+                Debug.Log($"[PlayerController] ✅ Desaceleração removida");
+            }
+        }
+
+        /// <summary>
+        /// Atualiza velocidade de movimento baseado em efeitos ativos
+        /// </summary>
+        private void UpdateMovementSpeed()
+        {
+            // Reseta para velocidade original
+            movementSpeed = originalSpeed;
+
+            // Aplica o maior slow ativo (não acumula)
+            if (activeSlowEffects.Count > 0)
+            {
+                float strongestSlow = 1f;
+                foreach (float slowPercentage in activeSlowEffects.Values)
+                {
+                    if (slowPercentage < strongestSlow)
+                    {
+                        strongestSlow = slowPercentage;
+                    }
+                }
+
+                movementSpeed *= strongestSlow;
+                Debug.Log($"[PlayerController] 📉 Velocidade ajustada para: {movementSpeed}");
+            }
+        }
+
+        // Métodos públicos para UI
+        public float GetSlowZoneCooldownPercent()
+        {
+            return Mathf.Clamp01(1f - (slowZoneCooldownTimer / slowZoneCooldown));
+        }
+
+        public bool IsSlowZoneAvailable()
+        {
+            return canDeploySlowZone && !isStunned;
+        }
+
+        public float GetSlowZoneCooldownRemaining()
+        {
+            return Mathf.Max(0f, slowZoneCooldownTimer);
+        }
+
+        public bool IsSlowed()
+        {
+            return activeSlowEffects.Count > 0;
+        }
+
+        #endregion
+
+        #region Visual Effects
+
         private void PlayStealEffects(Vector3 position)
         {
             // Partículas de roubo
@@ -663,7 +805,8 @@ namespace QuantumHeist.Game
                 stream.SendNext(playerScore);
                 stream.SendNext(isDashing);
                 stream.SendNext(dashCooldownTimer);
-                stream.SendNext(isStunned); // ✅ Sincroniza estado de stun
+                stream.SendNext(isStunned);
+                stream.SendNext(slowZoneCooldownTimer);
             }
             else
             {
@@ -672,7 +815,8 @@ namespace QuantumHeist.Game
                 playerScore = (int)stream.ReceiveNext();
                 isDashing = (bool)stream.ReceiveNext();
                 dashCooldownTimer = (float)stream.ReceiveNext();
-                isStunned = (bool)stream.ReceiveNext(); // ✅ Recebe estado de stun
+                isStunned = (bool)stream.ReceiveNext();
+                slowZoneCooldownTimer = (float)stream.ReceiveNext();
             }
         }
 

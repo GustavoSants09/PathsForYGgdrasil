@@ -31,6 +31,9 @@ namespace QuantumHeist.Game
         private HashSet<int> playersVotedLobby = new HashSet<int>();
         private bool rematchInProgress = false;
 
+        // ✅ Referência ao PhotonView (adicionada)
+        private PhotonView photonView;
+
         #region Unity Callbacks
 
         private void Awake()
@@ -42,6 +45,14 @@ namespace QuantumHeist.Game
                 return;
             }
             Instance = this;
+
+            // ✅ IMPORTANTE: Obtém referência ao PhotonView
+            photonView = GetComponent<PhotonView>();
+
+            if (photonView == null)
+            {
+                Debug.LogError("[GameManager] ❌ PhotonView não encontrado! Adicione o componente PhotonView ao GameObject GameManager.");
+            }
         }
 
         private void Start()
@@ -222,6 +233,13 @@ namespace QuantumHeist.Game
         /// </summary>
         public void PlayAgain()
         {
+            // ✅ VERIFICAÇÃO CRÍTICA: PhotonView existe?
+            if (photonView == null)
+            {
+                Debug.LogError("[GameManager] ❌ PhotonView é NULL! Adicione o componente PhotonView ao GameObject GameManager.");
+                return;
+            }
+
             if (rematchInProgress)
             {
                 Debug.Log("[GameManager] Rematch já em progresso!");
@@ -241,6 +259,13 @@ namespace QuantumHeist.Game
         /// </summary>
         public void BackToLobby()
         {
+            // ✅ VERIFICAÇÃO CRÍTICA: PhotonView existe?
+            if (photonView == null)
+            {
+                Debug.LogError("[GameManager] ❌ PhotonView é NULL! Adicione o componente PhotonView ao GameObject GameManager.");
+                return;
+            }
+
             if (rematchInProgress)
             {
                 Debug.Log("[GameManager] Transição já em progresso!");

@@ -61,6 +61,7 @@ MonoBehaviour:
   - RPC_ExecuteRematch
   - RPC_VoteForLobby
   - RPC_VoteForRematch
+  - RPC_ActivateZone
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1
