@@ -88,7 +88,7 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// ✅ NOVO: Verifica vitória IMEDIATAMENTE quando score é atualizado
+        /// Verifica vitória IMEDIATAMENTE quando score é atualizado
         /// Chamado pelo PlayerController quando coleta cristal
         /// </summary>
         public void CheckScoreUpdate(int newScore, Player player)
@@ -101,72 +101,53 @@ namespace QuantumHeist.Game
 
             Debug.Log($"[GameManager] CheckScoreUpdate: {player.NickName} = {newScore}/{targetScore}");
 
-            // ✅ Verifica se atingiu o target
+            // Verifica se atingiu o target
             if (newScore >= targetScore)
             {
                 Debug.Log($"[GameManager] 🏆 {player.NickName} ATINGIU O TARGET! Finalizando jogo...");
 
-                // ✅ Apenas Master Client pode finalizar o jogo
-                if (PhotonNetwork.IsMasterClient)
-                {
-                    TriggerGameOver(player.NickName, newScore);
-                }
-                else
-                {
-                    // ✅ Cliente solicita ao Master que finalize o jogo
-                    photonView.RPC("RPC_RequestGameOver", RpcTarget.MasterClient, player.NickName, newScore);
-                }
+                // ✅ QUALQUER CLIENTE pode finalizar o jogo (via CustomProperties)
+                TriggerGameOver(player.NickName, newScore);
             }
         }
 
         /// <summary>
-        /// ✅ NOVO: RPC para cliente solicitar fim de jogo ao Master
-        /// </summary>
-        [PunRPC]
-        private void RPC_RequestGameOver(string winnerName, int finalScore)
-        {
-            if (!PhotonNetwork.IsMasterClient) return;
-            if (gameEnded) return;
-
-            Debug.Log($"[GameManager] Master recebeu solicitação de Game Over de {winnerName}");
-            TriggerGameOver(winnerName, finalScore);
-        }
-
-        /// <summary>
-        /// ✅ NOVO: Dispara o fim de jogo (apenas Master Client)
+        /// ✅ NOVO: Dispara o fim de jogo usando CustomProperties da sala
         /// </summary>
         private void TriggerGameOver(string winnerName, int finalScore)
         {
             if (gameEnded) return;
-            if (!PhotonNetwork.IsMasterClient) return;
 
             gameEnded = true;
 
             Debug.Log($"[GameManager] 🏆 TRIGGERING GAME OVER! Winner: {winnerName}, Score: {finalScore}");
 
-            // ✅ Notifica TODOS os clientes
-            photonView.RPC("RPC_GameOver", RpcTarget.All, winnerName, finalScore);
+            // ✅ Usa CustomProperties da sala para sincronizar o fim do jogo
+            ExitGames.Client.Photon.Hashtable gameOverProps = new ExitGames.Client.Photon.Hashtable
+            {
+                { "GameEnded", true },
+                { "WinnerName", winnerName },
+                { "FinalScore", finalScore }
+            };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(gameOverProps);
+
+            // ✅ Executa o fim do jogo localmente
+            ExecuteGameOver(winnerName, finalScore);
         }
 
         /// <summary>
-        /// RPC que finaliza o jogo para todos os jogadores
+        /// ✅ NOVO: Executa o fim do jogo (chamado localmente e via callback)
         /// </summary>
-        [PunRPC]
-        private void RPC_GameOver(string winnerName, int finalScore)
+        private void ExecuteGameOver(string winnerName, int finalScore)
         {
-            if (gameEnded && PhotonNetwork.IsMasterClient)
-            {
-                // Master já marcou como terminado
-                Debug.Log($"[GameManager] RPC_GameOver recebido (já processado pelo Master)");
-            }
-            else
+            if (!gameEnded)
             {
                 gameEnded = true;
             }
 
             Debug.Log($"[GameManager] 🏆 GAME OVER! {winnerName} venceu com {finalScore} pontos!");
 
-            // ✅ Desabilita controles de todos os jogadores IMEDIATAMENTE
+            // Desabilita controles de todos os jogadores IMEDIATAMENTE
             PlayerController[] allPlayers = FindObjectsOfType<PlayerController>();
             foreach (PlayerController player in allPlayers)
             {
@@ -174,11 +155,11 @@ namespace QuantumHeist.Game
                 Debug.Log($"[GameManager] Player {player.name} desabilitado");
             }
 
-            // ✅ Libera cursor
+            // Libera cursor
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            // ✅ Exibe UI de game over
+            // Exibe UI de game over
             if (uiManager != null)
             {
                 uiManager.ShowGameOver(winnerName, finalScore);
@@ -198,7 +179,7 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// ✅ NOVO: Verifica se o jogo terminou
+        /// Verifica se o jogo terminou
         /// </summary>
         public bool IsGameEnded()
         {
@@ -232,13 +213,13 @@ namespace QuantumHeist.Game
         /// </summary>
         public override void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
         {
-            // ✅ Verifica mudanças de score
+            // Verifica mudanças de score
             if (changedProps.ContainsKey("Score"))
             {
                 int newScore = (int)changedProps["Score"];
                 Debug.Log($"[GameManager] OnPlayerPropertiesUpdate: {targetPlayer.NickName} score = {newScore}");
 
-                // ✅ Verifica vitória quando score é atualizado
+                // Verifica vitória quando score é atualizado
                 CheckScoreUpdate(newScore, targetPlayer);
             }
 
@@ -246,6 +227,28 @@ namespace QuantumHeist.Game
             if (uiManager != null)
             {
                 uiManager.OnPlayerPropertiesUpdate(targetPlayer, changedProps);
+            }
+        }
+
+        /// <summary>
+        /// ✅ NOVO: Callback quando CustomProperties da sala mudam
+        /// </summary>
+        public override void OnRoomPropertiesUpdate(ExitGames.Client.Photon.Hashtable propertiesThatChanged)
+        {
+            // Verifica se o jogo terminou
+            if (propertiesThatChanged.ContainsKey("GameEnded"))
+            {
+                bool ended = (bool)propertiesThatChanged["GameEnded"];
+
+                if (ended && !gameEnded)
+                {
+                    string winnerName = (string)PhotonNetwork.CurrentRoom.CustomProperties["WinnerName"];
+                    int finalScore = (int)PhotonNetwork.CurrentRoom.CustomProperties["FinalScore"];
+
+                    Debug.Log($"[GameManager] OnRoomPropertiesUpdate: Jogo terminou! {winnerName} venceu!");
+
+                    ExecuteGameOver(winnerName, finalScore);
+                }
             }
         }
 
