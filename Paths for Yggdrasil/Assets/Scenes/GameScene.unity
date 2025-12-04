@@ -2212,7 +2212,7 @@ MonoBehaviour:
   - {fileID: 574301011}
   playerPrefab: {fileID: 259735593508330760, guid: 2c2cb646ae610dd45891313c724cc0cb,
     type: 3}
-  targetScore: 500
+  targetScore: 250
   matchDuration: 300
   uiManager: {fileID: 1346086678}
 --- !u!4 &1368326993
