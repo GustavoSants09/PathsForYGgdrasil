@@ -327,7 +327,6 @@ GameObject:
   - component: {fileID: 264711530}
   - component: {fileID: 264711532}
   - component: {fileID: 264711531}
-  - component: {fileID: 264711533}
   m_Layer: 5
   m_Name: 'ScorePanel '
   m_TagString: Untagged
@@ -395,28 +394,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 264711529}
   m_CullTransparentMesh: 1
---- !u!114 &264711533
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 264711529}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 6
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!1 &292555300
 GameObject:
   m_ObjectHideFlags: 0
@@ -428,7 +405,6 @@ GameObject:
   - component: {fileID: 292555301}
   - component: {fileID: 292555303}
   - component: {fileID: 292555302}
-  - component: {fileID: 292555304}
   m_Layer: 5
   m_Name: 'TargetScoreText '
   m_TagString: Untagged
@@ -554,28 +530,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 292555300}
   m_CullTransparentMesh: 1
---- !u!114 &292555304
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 292555300}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 15
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!1 &361624129
 GameObject:
   m_ObjectHideFlags: 0
@@ -1208,7 +1162,6 @@ GameObject:
   m_Component:
   - component: {fileID: 863672075}
   - component: {fileID: 863672076}
-  - component: {fileID: 863672077}
   m_Layer: 5
   m_Name: 'LocalPlayerProgressBar '
   m_TagString: Untagged
@@ -1289,28 +1242,6 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &863672077
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 863672074}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 13
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!1 &923045394
 GameObject:
   m_ObjectHideFlags: 0
@@ -1885,7 +1816,6 @@ GameObject:
   - component: {fileID: 1225450624}
   - component: {fileID: 1225450626}
   - component: {fileID: 1225450625}
-  - component: {fileID: 1225450627}
   - component: {fileID: 1225450628}
   m_Layer: 5
   m_Name: 'LocalPlayerScoreText '
@@ -2012,28 +1942,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1225450623}
   m_CullTransparentMesh: 1
---- !u!114 &1225450627
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1225450623}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 4
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!114 &1225450628
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2067,7 +1975,6 @@ GameObject:
   - component: {fileID: 1231210541}
   - component: {fileID: 1231210543}
   - component: {fileID: 1231210542}
-  - component: {fileID: 1231210544}
   - component: {fileID: 1231210545}
   m_Layer: 5
   m_Name: LocalPlayerNameText
@@ -2194,28 +2101,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1231210540}
   m_CullTransparentMesh: 1
---- !u!114 &1231210544
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1231210540}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 3
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!114 &1231210545
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2248,7 +2133,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1346086679}
   - component: {fileID: 1346086678}
-  - component: {fileID: 1346086680}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -2291,32 +2175,9 @@ Transform:
   m_LocalPosition: {x: 972.9263, y: 769.23175, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1813208392}
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1346086680
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1346086677}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 17
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!1 &1368326991
 GameObject:
   m_ObjectHideFlags: 0
@@ -2933,7 +2794,7 @@ RectTransform:
   m_Children:
   - {fileID: 264711530}
   - {fileID: 923045395}
-  m_Father: {fileID: 1346086679}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -3398,7 +3259,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1993675060}
   - component: {fileID: 1993675061}
-  - component: {fileID: 1993675062}
   m_Layer: 5
   m_Name: 'LocalPlayerSection '
   m_TagString: Untagged
@@ -3454,28 +3314,6 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
---- !u!114 &1993675062
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1993675059}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonView
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 8
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!1 &2101352877
 GameObject:
   m_ObjectHideFlags: 0
@@ -3712,3 +3550,4 @@ SceneRoots:
   - {fileID: 934944071}
   - {fileID: 1605583612417636052}
   - {fileID: 2571723445458018239}
+  - {fileID: 1813208392}
