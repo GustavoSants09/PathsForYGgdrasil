@@ -54,6 +54,7 @@ MonoBehaviour:
   - RPC_EndGame
   - RPC_GetStunned
   - RPC_GameOver
+  - RPC_PlayDashEffect
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1

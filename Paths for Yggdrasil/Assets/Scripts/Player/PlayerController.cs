@@ -19,19 +19,35 @@ namespace QuantumHeist.Game
         [SerializeField] private float mouseSensitivity = 2f;
         [SerializeField] private float maxLookAngle = 80f;
 
+        [Header("Dash Settings")]
+        [SerializeField] private float dashDistance = 10f;
+        [SerializeField] private float dashDuration = 0.2f;
+        [SerializeField] private float dashCooldown = 4f;
+
         [Header("Crystal Collection")]
         [SerializeField] private int playerScore = 0;
         private float originalSpeed;
         private Coroutine speedBoostCoroutine;
 
+        [Header("Visual Feedback")]
+        [SerializeField] private ParticleSystem dashParticles;
+        [SerializeField] private AudioClip dashSound;
+
         [Header("Components")]
         private CharacterController characterController;
         private Camera playerCamera;
         private PhotonView photonView;
+        private AudioSource audioSource;
 
         // State
         private float verticalVelocity = 0f;
         private float cameraPitch = 0f;
+
+        // Dash State
+        private bool canDash = true;
+        private bool isDashing = false;
+        private float dashCooldownTimer = 0f;
+        private Vector3 lastMoveDirection = Vector3.forward;
 
         // Sincronização de rede
         private Vector3 networkPosition;
@@ -43,6 +59,15 @@ namespace QuantumHeist.Game
         {
             characterController = GetComponent<CharacterController>();
             photonView = GetComponent<PhotonView>();
+
+            // Adiciona AudioSource se necessário
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null && dashSound != null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.spatialBlend = 1f; // Som 3D
+                audioSource.maxDistance = 20f;
+            }
         }
 
         private void Start()
@@ -79,6 +104,8 @@ namespace QuantumHeist.Game
 
             HandleMouseLook();
             HandleMovement();
+            HandleDash();
+            UpdateDashTimer();
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -172,11 +199,21 @@ namespace QuantumHeist.Game
 
         private void HandleMovement()
         {
+            // Bloqueia movimento durante dash
+            if (isDashing)
+                return;
+
             float horizontal = Input.GetAxis("Horizontal");
             float vertical = Input.GetAxis("Vertical");
 
             Vector3 moveDirection = transform.right * horizontal + transform.forward * vertical;
             moveDirection.Normalize();
+
+            // Armazena última direção para o dash
+            if (moveDirection != Vector3.zero)
+            {
+                lastMoveDirection = moveDirection;
+            }
 
             float currentSpeed = movementSpeed;
             if (Input.GetKey(KeyCode.LeftShift))
@@ -211,6 +248,121 @@ namespace QuantumHeist.Game
             {
                 playerCamera.transform.localRotation = Quaternion.Euler(cameraPitch, 0f, 0f);
             }
+        }
+
+        #endregion
+
+        #region Dash System
+
+        /// <summary>
+        /// Processa input de dash
+        /// </summary>
+        private void HandleDash()
+        {
+            if (Input.GetKeyDown(KeyCode.Space) && canDash && !isDashing && characterController.isGrounded)
+            {
+                StartCoroutine(PerformDash());
+            }
+        }
+
+        /// <summary>
+        /// Executa o dash com física otimizada
+        /// </summary>
+        private IEnumerator PerformDash()
+        {
+            isDashing = true;
+            canDash = false;
+            dashCooldownTimer = dashCooldown;
+
+            // Sincroniza efeitos visuais com outros jogadores
+            photonView.RPC("RPC_PlayDashEffect", RpcTarget.AllBuffered);
+
+            // Calcula direção do dash (usa última direção de movimento ou forward)
+            Vector3 dashDirection = lastMoveDirection.normalized;
+
+            // Calcula velocidade do dash
+            float dashSpeed = dashDistance / dashDuration;
+            float elapsedTime = 0f;
+
+            Debug.Log($"[PlayerController] 💨 DASH iniciado! Direção: {dashDirection}");
+
+            // Movimento do dash com velocidade constante
+            while (elapsedTime < dashDuration)
+            {
+                if (!photonView.IsMine)
+                    yield break;
+
+                float step = dashSpeed * Time.deltaTime;
+                characterController.Move(dashDirection * step);
+
+                elapsedTime += Time.deltaTime;
+                yield return null;
+            }
+
+            isDashing = false;
+            Debug.Log($"[PlayerController] ✅ Dash finalizado! Cooldown: {dashCooldown}s");
+        }
+
+        /// <summary>
+        /// Atualiza timer do cooldown do dash
+        /// </summary>
+        private void UpdateDashTimer()
+        {
+            if (!canDash)
+            {
+                dashCooldownTimer -= Time.deltaTime;
+                if (dashCooldownTimer <= 0)
+                {
+                    canDash = true;
+                    dashCooldownTimer = 0f;
+                    Debug.Log("[PlayerController] ⚡ Dash disponível!");
+                }
+            }
+        }
+
+        /// <summary>
+        /// RPC para sincronizar efeitos visuais do dash
+        /// </summary>
+        [PunRPC]
+        private void RPC_PlayDashEffect()
+        {
+            // Ativa partículas
+            if (dashParticles != null)
+            {
+                dashParticles.Play();
+            }
+
+            // Toca som
+            if (audioSource != null && dashSound != null)
+            {
+                audioSource.PlayOneShot(dashSound);
+            }
+
+            Debug.Log($"[PlayerController] 🎨 Efeito de dash reproduzido para {photonView.Owner.NickName}");
+        }
+
+        /// <summary>
+        /// Retorna o progresso do cooldown (0 a 1)
+        /// </summary>
+        public float GetDashCooldownPercent()
+        {
+            return Mathf.Clamp01(1f - (dashCooldownTimer / dashCooldown));
+        }
+
+        /// <summary>
+        /// Retorna se o dash está disponível
+        /// </summary>
+        public bool IsDashAvailable()
+        {
+            return canDash && characterController.isGrounded;
+        }
+
+        /// <summary>
+        /// Retorna tempo restante do cooldown
+        /// </summary>
+        public float GetDashCooldownRemaining()
+        {
+            return Mathf.Max(0f, dashCooldownTimer);
         }
 
         #endregion
@@ -333,13 +485,17 @@ namespace QuantumHeist.Game
             {
                 stream.SendNext(transform.position);
                 stream.SendNext(transform.rotation);
-                stream.SendNext(playerScore); // SINCRONIZA SCORE TAMBÉM
+                stream.SendNext(playerScore);
+                stream.SendNext(isDashing);
+                stream.SendNext(dashCooldownTimer);
             }
             else
             {
                 networkPosition = (Vector3)stream.ReceiveNext();
                 networkRotation = (Quaternion)stream.ReceiveNext();
-                playerScore = (int)stream.ReceiveNext(); // RECEBE SCORE
+                playerScore = (int)stream.ReceiveNext();
+                isDashing = (bool)stream.ReceiveNext();
+                dashCooldownTimer = (float)stream.ReceiveNext();
             }
         }
 
