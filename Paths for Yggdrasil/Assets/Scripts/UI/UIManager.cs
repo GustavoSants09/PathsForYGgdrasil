@@ -43,6 +43,7 @@ namespace QuantumHeist.Game
 
             UpdateTargetScoreDisplay();
             StartCoroutine(UpdateScoresRoutine());
+
         }
 
         /// <summary>
