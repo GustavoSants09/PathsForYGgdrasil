@@ -253,3 +253,5 @@ MonoBehaviour:
   rotationSpeed: 50
   collectEffect: {fileID: 0}
   collectSound: {fileID: 0}
+  bobbingHeight: 0.3
+  bobbingSpeed: 2

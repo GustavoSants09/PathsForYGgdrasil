@@ -24,6 +24,11 @@ namespace QuantumHeist.Game
         [SerializeField] private float dashDuration = 0.2f;
         [SerializeField] private float dashCooldown = 4f;
 
+        [Header("PvP Settings")]
+        [SerializeField] private float stealPercentage = 0.2f; // 20% dos pontos
+        [SerializeField] private float stunDuration = 1.5f;
+        [SerializeField] private int minPointsToSteal = 10; // Mínimo para roubar
+
         [Header("Crystal Collection")]
         [SerializeField] private int playerScore = 0;
         private float originalSpeed;
@@ -32,6 +37,10 @@ namespace QuantumHeist.Game
         [Header("Visual Feedback")]
         [SerializeField] private ParticleSystem dashParticles;
         [SerializeField] private AudioClip dashSound;
+        [SerializeField] private ParticleSystem stealEffect; // Efeito de roubo
+        [SerializeField] private AudioClip stealSound;
+        [SerializeField] private ParticleSystem stunEffect; // Efeito de atordoamento
+        [SerializeField] private AudioClip stunSound;
 
         [Header("Components")]
         private CharacterController characterController;
@@ -49,6 +58,10 @@ namespace QuantumHeist.Game
         private float dashCooldownTimer = 0f;
         private Vector3 lastMoveDirection = Vector3.forward;
 
+        // Stun State
+        private bool isStunned = false;
+        private Coroutine stunCoroutine;
+
         // Sincronização de rede
         private Vector3 networkPosition;
         private Quaternion networkRotation;
@@ -62,7 +75,7 @@ namespace QuantumHeist.Game
 
             // Adiciona AudioSource se necessário
             audioSource = GetComponent<AudioSource>();
-            if (audioSource == null && dashSound != null)
+            if (audioSource == null)
             {
                 audioSource = gameObject.AddComponent<AudioSource>();
                 audioSource.spatialBlend = 1f; // Som 3D
@@ -118,9 +131,6 @@ namespace QuantumHeist.Game
 
         #region Setup
 
-        /// <summary>
-        /// Inicializa score do jogador nas CustomProperties do Photon
-        /// </summary>
         private void InitializeScore()
         {
             ExitGames.Client.Photon.Hashtable initialProps = new ExitGames.Client.Photon.Hashtable
@@ -132,9 +142,6 @@ namespace QuantumHeist.Game
             Debug.Log($"[PlayerController] Score inicializado para {PhotonNetwork.LocalPlayer.NickName}");
         }
 
-        /// <summary>
-        /// Carrega score de outros jogadores das CustomProperties
-        /// </summary>
         private void LoadScoreFromCustomProperties()
         {
             if (photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreValue))
@@ -199,8 +206,8 @@ namespace QuantumHeist.Game
 
         private void HandleMovement()
         {
-            // Bloqueia movimento durante dash
-            if (isDashing)
+            // ✅ Bloqueia movimento durante dash OU atordoamento
+            if (isDashing || isStunned)
                 return;
 
             float horizontal = Input.GetAxis("Horizontal");
@@ -236,6 +243,10 @@ namespace QuantumHeist.Game
 
         private void HandleMouseLook()
         {
+            // ✅ Bloqueia rotação da câmera durante atordoamento
+            if (isStunned)
+                return;
+
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
             float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
@@ -254,20 +265,15 @@ namespace QuantumHeist.Game
 
         #region Dash System
 
-        /// <summary>
-        /// Processa input de dash
-        /// </summary>
         private void HandleDash()
         {
-            if (Input.GetKeyDown(KeyCode.Space) && canDash && !isDashing && characterController.isGrounded)
+            // ✅ Bloqueia dash durante atordoamento
+            if (Input.GetKeyDown(KeyCode.Space) && canDash && !isDashing && !isStunned && characterController.isGrounded)
             {
                 StartCoroutine(PerformDash());
             }
         }
 
-        /// <summary>
-        /// Executa o dash com física otimizada
-        /// </summary>
         private IEnumerator PerformDash()
         {
             isDashing = true;
@@ -277,16 +283,14 @@ namespace QuantumHeist.Game
             // Sincroniza efeitos visuais com outros jogadores
             photonView.RPC("RPC_PlayDashEffect", RpcTarget.AllBuffered);
 
-            // Calcula direção do dash (usa última direção de movimento ou forward)
+            // Calcula direção do dash
             Vector3 dashDirection = lastMoveDirection.normalized;
-
-            // Calcula velocidade do dash
             float dashSpeed = dashDistance / dashDuration;
             float elapsedTime = 0f;
 
             Debug.Log($"[PlayerController] 💨 DASH iniciado! Direção: {dashDirection}");
 
-            // Movimento do dash com velocidade constante
+            // Movimento do dash com detecção de colisão PvP
             while (elapsedTime < dashDuration)
             {
                 if (!photonView.IsMine)
@@ -294,6 +298,9 @@ namespace QuantumHeist.Game
 
                 float step = dashSpeed * Time.deltaTime;
                 characterController.Move(dashDirection * step);
+
+                // ✅ DETECÇÃO DE COLISÃO COM OUTROS JOGADORES
+                CheckDashCollision();
 
                 elapsedTime += Time.deltaTime;
                 yield return null;
@@ -304,8 +311,130 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// Atualiza timer do cooldown do dash
+        /// ✅ NOVO: Detecta colisão do dash com outros jogadores
         /// </summary>
+        private void CheckDashCollision()
+        {
+            // Raycast esférico para detectar jogadores próximos
+            Collider[] hitColliders = Physics.OverlapSphere(transform.position, 1.5f);
+
+            foreach (Collider hit in hitColliders)
+            {
+                // Ignora a si mesmo
+                if (hit.gameObject == gameObject)
+                    continue;
+
+                // Verifica se é outro jogador
+                PlayerController otherPlayer = hit.GetComponent<PlayerController>();
+                if (otherPlayer != null && otherPlayer.photonView != null)
+                {
+                    // ✅ Processa roubo de pontos
+                    ProcessPointSteal(otherPlayer);
+                    break; // Apenas um roubo por dash
+                }
+            }
+        }
+
+        /// <summary>
+        /// ✅ NOVO: Processa o roubo de pontos
+        /// </summary>
+        private void ProcessPointSteal(PlayerController victim)
+        {
+            if (!photonView.IsMine) return;
+
+            // Obtém score da vítima das CustomProperties
+            int victimScore = 0;
+            if (victim.photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreValue))
+            {
+                victimScore = (int)scoreValue;
+            }
+
+            // Verifica se a vítima tem pontos suficientes
+            if (victimScore < minPointsToSteal)
+            {
+                Debug.Log($"[PlayerController] 🚫 {victim.photonView.Owner.NickName} não tem pontos suficientes para roubar");
+                return;
+            }
+
+            // Calcula pontos roubados (20%)
+            int stolenPoints = Mathf.FloorToInt(victimScore * stealPercentage);
+            stolenPoints = Mathf.Max(stolenPoints, minPointsToSteal); // Mínimo de 10 pontos
+
+            Debug.Log($"[PlayerController] 💰 Roubando {stolenPoints} pontos de {victim.photonView.Owner.NickName}!");
+
+            // ✅ Chama RPC para sincronizar roubo
+            photonView.RPC("RPC_StealPoints", RpcTarget.AllBuffered,
+                victim.photonView.ViewID,
+                stolenPoints);
+        }
+
+        /// <summary>
+        /// ✅ RPC que sincroniza o roubo de pontos
+        /// </summary>
+        [PunRPC]
+        private void RPC_StealPoints(int victimViewID, int stolenPoints)
+        {
+            // Encontra a vítima
+            PhotonView victimView = PhotonView.Find(victimViewID);
+            if (victimView == null) return;
+
+            PlayerController victim = victimView.GetComponent<PlayerController>();
+            if (victim == null) return;
+
+            Player attacker = photonView.Owner;
+            Player victimPlayer = victimView.Owner;
+
+            Debug.Log($"[PlayerController] 🎯 RPC_StealPoints: {attacker.NickName} roubou {stolenPoints} de {victimPlayer.NickName}");
+
+            // ✅ Atualiza scores nas CustomProperties (apenas Master Client)
+            if (PhotonNetwork.IsMasterClient)
+            {
+                // Remove pontos da vítima
+                int victimCurrentScore = 0;
+                if (victimPlayer.CustomProperties.TryGetValue("Score", out object victimScoreObj))
+                {
+                    victimCurrentScore = (int)victimScoreObj;
+                }
+
+                int newVictimScore = Mathf.Max(0, victimCurrentScore - stolenPoints);
+
+                ExitGames.Client.Photon.Hashtable victimProps = new ExitGames.Client.Photon.Hashtable
+                {
+                    { "Score", newVictimScore }
+                };
+                victimPlayer.SetCustomProperties(victimProps);
+
+                // Adiciona pontos ao atacante
+                int attackerCurrentScore = 0;
+                if (attacker.CustomProperties.TryGetValue("Score", out object attackerScoreObj))
+                {
+                    attackerCurrentScore = (int)attackerScoreObj;
+                }
+
+                int newAttackerScore = attackerCurrentScore + stolenPoints;
+
+                ExitGames.Client.Photon.Hashtable attackerProps = new ExitGames.Client.Photon.Hashtable
+                {
+                    { "Score", newAttackerScore }
+                };
+                attacker.SetCustomProperties(attackerProps);
+
+                Debug.Log($"[PlayerController] 📊 Scores atualizados: {victimPlayer.NickName}={newVictimScore}, {attacker.NickName}={newAttackerScore}");
+            }
+
+            // ✅ Aplica atordoamento na vítima
+            if (victim.photonView.IsMine)
+            {
+                victim.ApplyStun();
+            }
+
+            // ✅ Efeitos visuais
+            PlayStealEffects(victim.transform.position);
+
+            // Atualiza UI
+            UpdateAllScoreboards();
+        }
+
         private void UpdateDashTimer()
         {
             if (!canDash)
@@ -320,19 +449,14 @@ namespace QuantumHeist.Game
             }
         }
 
-        /// <summary>
-        /// RPC para sincronizar efeitos visuais do dash
-        /// </summary>
         [PunRPC]
         private void RPC_PlayDashEffect()
         {
-            // Ativa partículas
             if (dashParticles != null)
             {
                 dashParticles.Play();
             }
 
-            // Toca som
             if (audioSource != null && dashSound != null)
             {
                 audioSource.PlayOneShot(dashSound);
@@ -341,25 +465,16 @@ namespace QuantumHeist.Game
             Debug.Log($"[PlayerController] 🎨 Efeito de dash reproduzido para {photonView.Owner.NickName}");
         }
 
-        /// <summary>
-        /// Retorna o progresso do cooldown (0 a 1)
-        /// </summary>
         public float GetDashCooldownPercent()
         {
             return Mathf.Clamp01(1f - (dashCooldownTimer / dashCooldown));
         }
 
-        /// <summary>
-        /// Retorna se o dash está disponível
-        /// </summary>
         public bool IsDashAvailable()
         {
-            return canDash && characterController.isGrounded;
+            return canDash && characterController.isGrounded && !isStunned;
         }
 
-        /// <summary>
-        /// Retorna tempo restante do cooldown
-        /// </summary>
         public float GetDashCooldownRemaining()
         {
             return Mathf.Max(0f, dashCooldownTimer);
@@ -367,20 +482,100 @@ namespace QuantumHeist.Game
 
         #endregion
 
-        #region Crystal Collection System
+        #region Stun System
 
         /// <summary>
-        /// Chamado quando jogador coleta um cristal
-        /// SINCRONIZA COM PHOTON CUSTOM PROPERTIES
+        /// ✅ NOVO: Aplica atordoamento no jogador
         /// </summary>
+        public void ApplyStun()
+        {
+            if (!photonView.IsMine) return;
+
+            if (stunCoroutine != null)
+            {
+                StopCoroutine(stunCoroutine);
+            }
+
+            stunCoroutine = StartCoroutine(StunRoutine());
+        }
+
+        /// <summary>
+        /// ✅ NOVO: Corrotina de atordoamento
+        /// </summary>
+        private IEnumerator StunRoutine()
+        {
+            isStunned = true;
+
+            Debug.Log($"[PlayerController] 😵 {photonView.Owner.NickName} foi ATORDOADO por {stunDuration}s!");
+
+            // Efeitos visuais
+            if (stunEffect != null)
+            {
+                stunEffect.Play();
+            }
+
+            if (audioSource != null && stunSound != null)
+            {
+                audioSource.PlayOneShot(stunSound);
+            }
+
+            // Aguarda duração do atordoamento
+            yield return new WaitForSeconds(stunDuration);
+
+            isStunned = false;
+
+            // Para efeitos
+            if (stunEffect != null)
+            {
+                stunEffect.Stop();
+            }
+
+            Debug.Log($"[PlayerController] ✅ {photonView.Owner.NickName} recuperado do atordoamento!");
+
+            stunCoroutine = null;
+        }
+
+        /// <summary>
+        /// Retorna se o jogador está atordoado
+        /// </summary>
+        public bool IsStunned()
+        {
+            return isStunned;
+        }
+
+        #endregion
+
+        #region Visual Effects
+
+        /// <summary>
+        /// ✅ NOVO: Efeitos visuais de roubo
+        /// </summary>
+        private void PlayStealEffects(Vector3 position)
+        {
+            // Partículas de roubo
+            if (stealEffect != null)
+            {
+                ParticleSystem effect = Instantiate(stealEffect, position, Quaternion.identity);
+                Destroy(effect.gameObject, 3f);
+            }
+
+            // Som de roubo
+            if (stealSound != null)
+            {
+                AudioSource.PlayClipAtPoint(stealSound, position);
+            }
+        }
+
+        #endregion
+
+        #region Crystal Collection System
+
         public void CollectCrystal(int points, float speedMultiplier, float duration)
         {
             if (!photonView.IsMine) return;
 
-            // Atualiza score local
             playerScore += points;
 
-            // CRÍTICO: Sincroniza com Photon CustomProperties
             ExitGames.Client.Photon.Hashtable scoreProps = new ExitGames.Client.Photon.Hashtable
             {
                 { "Score", playerScore }
@@ -389,19 +584,11 @@ namespace QuantumHeist.Game
 
             Debug.Log($"[PlayerController] {photonView.Owner.NickName} coletou cristal! Novo Score: {playerScore}");
 
-            // Aplica boost de velocidade
             ApplySpeedBoost(speedMultiplier, duration);
-
-            // Feedback visual
             ShowCollectFeedback(points);
-
-            // FORÇA ATUALIZAÇÃO DO SCOREBOARD
             UpdateAllScoreboards();
         }
 
-        /// <summary>
-        /// NOVO: Força atualização manual do scoreboard
-        /// </summary>
         private void UpdateAllScoreboards()
         {
             UIManager[] uiManagers = FindObjectsOfType<UIManager>();
@@ -448,29 +635,17 @@ namespace QuantumHeist.Game
 
         #region Photon Callbacks
 
-        /// <summary>
-        /// Callback chamado quando as CustomProperties de QUALQUER jogador são alteradas
-        /// </summary>
         public override void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
         {
-            Debug.Log($"[PlayerController] OnPlayerPropertiesUpdate chamado para {targetPlayer.NickName}");
-            Debug.Log($"[PlayerController] Meu dono: {photonView.Owner.NickName}, Target: {targetPlayer.NickName}");
-
-            // Verifica se é o dono deste PlayerController
             if (targetPlayer != photonView.Owner)
-            {
-                Debug.Log($"[PlayerController] Não é meu dono, ignorando");
                 return;
-            }
 
-            // Verifica se o Score foi alterado
             if (changedProps.ContainsKey("Score"))
             {
                 int oldScore = playerScore;
                 playerScore = (int)changedProps["Score"];
                 Debug.Log($"[PlayerController] ✅ Score atualizado para {photonView.Owner.NickName}: {oldScore} → {playerScore}");
 
-                // Atualiza UI
                 UpdateAllScoreboards();
             }
         }
@@ -488,6 +663,7 @@ namespace QuantumHeist.Game
                 stream.SendNext(playerScore);
                 stream.SendNext(isDashing);
                 stream.SendNext(dashCooldownTimer);
+                stream.SendNext(isStunned); // ✅ Sincroniza estado de stun
             }
             else
             {
@@ -496,6 +672,7 @@ namespace QuantumHeist.Game
                 playerScore = (int)stream.ReceiveNext();
                 isDashing = (bool)stream.ReceiveNext();
                 dashCooldownTimer = (float)stream.ReceiveNext();
+                isStunned = (bool)stream.ReceiveNext(); // ✅ Recebe estado de stun
             }
         }
 
