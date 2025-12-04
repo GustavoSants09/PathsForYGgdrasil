@@ -1,13 +1,12 @@
-using Photon.Pun;
+﻿using Photon.Pun;
 using Photon.Realtime;
-//using QuantumHeist.UI;
 using UnityEngine;
 
 namespace QuantumHeist.Game
 {
     /// <summary>
     /// Gerencia spawn de jogadores e estado inicial do jogo
-    /// Respons�vel por instanciar players via Photon quando entrarem na cena
+    /// Responsável por instanciar players via Photon quando entrarem na cena
     /// </summary>
     public class GameManager : MonoBehaviourPunCallbacks
     {
@@ -18,11 +17,13 @@ namespace QuantumHeist.Game
         [SerializeField] private GameObject playerPrefab;
 
         [Header("Win Condition")]
-        [SerializeField] private int targetScore = 200;
+        [SerializeField] private int targetScore = 250;
         [SerializeField] private float matchDuration = 300f; // 5 minutos
 
         [Header("UI References")]
         [SerializeField] private UIManager uiManager;
+
+        private bool gameEnded = false;
 
         #region Unity Callbacks
 
@@ -39,13 +40,22 @@ namespace QuantumHeist.Game
 
         private void Start()
         {
+            // Reseta estado do jogo
+            gameEnded = false;
+
+            // Reseta votos de rematch ao iniciar
+            ResetRematchVotes();
+
             // Spawn do jogador local automaticamente
             SpawnPlayer();
-        }
 
-        private void Update()
-        {
-            CheckWinConditions();
+            // Encontra UIManager se não configurado
+            if (uiManager == null)
+            {
+                uiManager = FindObjectOfType<UIManager>();
+            }
+
+            Debug.Log($"[GameManager] Jogo iniciado. Target Score: {targetScore}");
         }
 
         #endregion
@@ -53,13 +63,13 @@ namespace QuantumHeist.Game
         #region Player Management
 
         /// <summary>
-        /// Spawna o jogador local em um ponto aleat�rio
+        /// Spawna o jogador local em um ponto aleatório
         /// </summary>
         private void SpawnPlayer()
         {
             if (playerPrefab == null || playerSpawnPoints.Length == 0)
             {
-                Debug.LogError("PlayerPrefab ou SpawnPoints n�o configurados!");
+                Debug.LogError("PlayerPrefab ou SpawnPoints não configurados!");
                 return;
             }
 
@@ -78,52 +88,165 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// Verifica se algum jogador atingiu a pontua��o necess�ria
+        /// ✅ NOVO: Verifica vitória IMEDIATAMENTE quando score é atualizado
+        /// Chamado pelo PlayerController quando coleta cristal
         /// </summary>
-        private void CheckWinConditions()
+        public void CheckScoreUpdate(int newScore, Player player)
         {
-            if (!PhotonNetwork.IsMasterClient) return;
-
-            foreach (Player player in PhotonNetwork.PlayerList)
+            if (gameEnded)
             {
-                if (player.CustomProperties.ContainsKey("Score"))
-                {
-                    int playerScore = (int)player.CustomProperties["Score"];
+                Debug.Log($"[GameManager] Jogo já terminou, ignorando score update");
+                return;
+            }
 
-                    if (playerScore >= targetScore)
-                    {
-                        // Jogador venceu!
-                        photonView.RPC("RPC_GameOver", RpcTarget.All, player.NickName, playerScore);
-                        return;
-                    }
+            Debug.Log($"[GameManager] CheckScoreUpdate: {player.NickName} = {newScore}/{targetScore}");
+
+            // ✅ Verifica se atingiu o target
+            if (newScore >= targetScore)
+            {
+                Debug.Log($"[GameManager] 🏆 {player.NickName} ATINGIU O TARGET! Finalizando jogo...");
+
+                // ✅ Apenas Master Client pode finalizar o jogo
+                if (PhotonNetwork.IsMasterClient)
+                {
+                    TriggerGameOver(player.NickName, newScore);
+                }
+                else
+                {
+                    // ✅ Cliente solicita ao Master que finalize o jogo
+                    photonView.RPC("RPC_RequestGameOver", RpcTarget.MasterClient, player.NickName, newScore);
                 }
             }
         }
 
+        /// <summary>
+        /// ✅ NOVO: RPC para cliente solicitar fim de jogo ao Master
+        /// </summary>
+        [PunRPC]
+        private void RPC_RequestGameOver(string winnerName, int finalScore)
+        {
+            if (!PhotonNetwork.IsMasterClient) return;
+            if (gameEnded) return;
+
+            Debug.Log($"[GameManager] Master recebeu solicitação de Game Over de {winnerName}");
+            TriggerGameOver(winnerName, finalScore);
+        }
+
+        /// <summary>
+        /// ✅ NOVO: Dispara o fim de jogo (apenas Master Client)
+        /// </summary>
+        private void TriggerGameOver(string winnerName, int finalScore)
+        {
+            if (gameEnded) return;
+            if (!PhotonNetwork.IsMasterClient) return;
+
+            gameEnded = true;
+
+            Debug.Log($"[GameManager] 🏆 TRIGGERING GAME OVER! Winner: {winnerName}, Score: {finalScore}");
+
+            // ✅ Notifica TODOS os clientes
+            photonView.RPC("RPC_GameOver", RpcTarget.All, winnerName, finalScore);
+        }
+
+        /// <summary>
+        /// RPC que finaliza o jogo para todos os jogadores
+        /// </summary>
         [PunRPC]
         private void RPC_GameOver(string winnerName, int finalScore)
         {
-            Debug.Log($"[GameManager] VIT�RIA! {winnerName} alcan�ou {finalScore} pontos!");
+            if (gameEnded && PhotonNetwork.IsMasterClient)
+            {
+                // Master já marcou como terminado
+                Debug.Log($"[GameManager] RPC_GameOver recebido (já processado pelo Master)");
+            }
+            else
+            {
+                gameEnded = true;
+            }
 
+            Debug.Log($"[GameManager] 🏆 GAME OVER! {winnerName} venceu com {finalScore} pontos!");
+
+            // ✅ Desabilita controles de todos os jogadores IMEDIATAMENTE
+            PlayerController[] allPlayers = FindObjectsOfType<PlayerController>();
+            foreach (PlayerController player in allPlayers)
+            {
+                player.enabled = false;
+                Debug.Log($"[GameManager] Player {player.name} desabilitado");
+            }
+
+            // ✅ Libera cursor
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            // ✅ Exibe UI de game over
             if (uiManager != null)
             {
                 uiManager.ShowGameOver(winnerName, finalScore);
             }
-
-            // Desabilita controles dos jogadores
-            PlayerController localPlayer = FindObjectOfType<PlayerController>();
-            if (localPlayer != null)
+            else
             {
-                localPlayer.enabled = false;
+                Debug.LogError("[GameManager] UIManager não encontrado!");
             }
         }
 
         /// <summary>
-        /// Obt�m pontua��o necess�ria para vencer
+        /// Obtém pontuação necessária para vencer
         /// </summary>
         public int GetTargetScore()
         {
             return targetScore;
+        }
+
+        /// <summary>
+        /// ✅ NOVO: Verifica se o jogo terminou
+        /// </summary>
+        public bool IsGameEnded()
+        {
+            return gameEnded;
+        }
+
+        #endregion
+
+        #region Rematch System
+
+        /// <summary>
+        /// Reseta votos de rematch de todos os jogadores
+        /// </summary>
+        private void ResetRematchVotes()
+        {
+            ExitGames.Client.Photon.Hashtable resetProps = new ExitGames.Client.Photon.Hashtable
+            {
+                { "WantsRematch", false }
+            };
+            PhotonNetwork.LocalPlayer.SetCustomProperties(resetProps);
+
+            Debug.Log("[GameManager] Votos de rematch resetados");
+        }
+
+        #endregion
+
+        #region Photon Callbacks
+
+        /// <summary>
+        /// Callback quando CustomProperties de um jogador mudam
+        /// </summary>
+        public override void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
+        {
+            // ✅ Verifica mudanças de score
+            if (changedProps.ContainsKey("Score"))
+            {
+                int newScore = (int)changedProps["Score"];
+                Debug.Log($"[GameManager] OnPlayerPropertiesUpdate: {targetPlayer.NickName} score = {newScore}");
+
+                // ✅ Verifica vitória quando score é atualizado
+                CheckScoreUpdate(newScore, targetPlayer);
+            }
+
+            // Notifica UIManager sobre mudanças
+            if (uiManager != null)
+            {
+                uiManager.OnPlayerPropertiesUpdate(targetPlayer, changedProps);
+            }
         }
 
         #endregion
