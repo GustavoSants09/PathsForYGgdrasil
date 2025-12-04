@@ -60,6 +60,9 @@ namespace QuantumHeist.Game
             {
                 if (playerCamera != null)
                     playerCamera.enabled = false;
+
+                // NOVO: Carrega score inicial de outros jogadores
+                LoadScoreFromCustomProperties();
             }
 
             SetPlayerName();
@@ -100,6 +103,18 @@ namespace QuantumHeist.Game
             PhotonNetwork.LocalPlayer.SetCustomProperties(initialProps);
 
             Debug.Log($"[PlayerController] Score inicializado para {PhotonNetwork.LocalPlayer.NickName}");
+        }
+
+        /// <summary>
+        /// NOVO: Carrega score de outros jogadores das CustomProperties
+        /// </summary>
+        private void LoadScoreFromCustomProperties()
+        {
+            if (photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreValue))
+            {
+                playerScore = (int)scoreValue;
+                Debug.Log($"[PlayerController] Score carregado para {photonView.Owner.NickName}: {playerScore}");
+            }
         }
 
         private void SetupCamera()
@@ -204,7 +219,7 @@ namespace QuantumHeist.Game
 
         /// <summary>
         /// Chamado quando jogador coleta um cristal
-        /// AGORA SINCRONIZA COM PHOTON CUSTOM PROPERTIES
+        /// SINCRONIZA COM PHOTON CUSTOM PROPERTIES
         /// </summary>
         public void CollectCrystal(int points, float speedMultiplier, float duration)
         {
@@ -260,6 +275,28 @@ namespace QuantumHeist.Game
         public int GetScore()
         {
             return playerScore;
+        }
+
+        #endregion
+
+        #region Photon Callbacks
+
+        /// <summary>
+        /// NOVO: Callback chamado quando as CustomProperties de um jogador são alteradas
+        /// Sincroniza o score em todos os clientes
+        /// </summary>
+        public override void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
+        {
+            // Verifica se é o dono deste PlayerController
+            if (targetPlayer != photonView.Owner)
+                return;
+
+            // Verifica se o Score foi alterado
+            if (changedProps.ContainsKey("Score"))
+            {
+                playerScore = (int)changedProps["Score"];
+                Debug.Log($"[PlayerController] Score atualizado para {photonView.Owner.NickName}: {playerScore}");
+            }
         }
 
         #endregion
