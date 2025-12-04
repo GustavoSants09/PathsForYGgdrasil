@@ -26,15 +26,16 @@ namespace QuantumHeist.Game
         [SerializeField] private GameObject gameOverPanel;
         [SerializeField] private TextMeshProUGUI gameOverTitleText;
         [SerializeField] private TextMeshProUGUI gameOverDetailsText;
-        [SerializeField] private Button rematchButton; // ✅ NOVO
+        [SerializeField] private Button rematchButton;
         [SerializeField] private Button returnToLobbyButton;
 
-        [Header("Rematch System")] // ✅ NOVO
+        [Header("Rematch System")]
         [SerializeField] private TextMeshProUGUI rematchStatusText;
         [SerializeField] private GameObject waitingForOpponentPanel;
+        [SerializeField] private TextMeshProUGUI loadingText;
 
         private GameManager gameManager;
-        private bool hasVotedRematch = false; // ✅ NOVO
+        private bool hasVoted = false;
 
         void Start()
         {
@@ -48,10 +49,10 @@ namespace QuantumHeist.Game
 
             // ✅ Configura botões
             if (rematchButton != null)
-                rematchButton.onClick.AddListener(VoteRematch);
+                rematchButton.onClick.AddListener(OnRematchButtonClicked);
 
             if (returnToLobbyButton != null)
-                returnToLobbyButton.onClick.AddListener(ReturnToLobby);
+                returnToLobbyButton.onClick.AddListener(OnReturnToLobbyButtonClicked);
 
             UpdateTargetScoreDisplay();
             StartCoroutine(UpdateScoresRoutine());
@@ -188,16 +189,17 @@ namespace QuantumHeist.Game
                 gameOverDetailsText.text = $"{winnerName} venceu com {finalScore} pontos!";
             }
 
-            // ✅ Habilita botões
+            // ✅ Habilita botões e reseta estado
             if (rematchButton != null)
                 rematchButton.interactable = true;
 
             if (returnToLobbyButton != null)
                 returnToLobbyButton.interactable = true;
 
-            // ✅ Reseta estado de rematch
-            hasVotedRematch = false;
-            UpdateRematchStatus();
+            hasVoted = false;
+
+            // ✅ Atualiza status inicial
+            UpdateRematchVoteStatus(0, 0, PhotonNetwork.CurrentRoom.PlayerCount);
 
             Debug.Log($"[UIManager] Game Over exibido. Vencedor: {winnerName}");
         }
@@ -207,131 +209,111 @@ namespace QuantumHeist.Game
         #region Rematch System
 
         /// <summary>
-        /// ✅ NOVO: Vota para jogar novamente
+        /// ✅ Botão: Votar para rematch
         /// </summary>
-        private void VoteRematch()
+        private void OnRematchButtonClicked()
         {
-            if (hasVotedRematch)
+            if (hasVoted)
             {
-                Debug.Log("[UIManager] Já votou para rematch!");
+                Debug.Log("[UIManager] Já votou!");
                 return;
             }
 
-            hasVotedRematch = true;
+            hasVoted = true;
 
-            // ✅ Marca voto nas CustomProperties
-            ExitGames.Client.Photon.Hashtable voteProps = new ExitGames.Client.Photon.Hashtable
+            // Desabilita botões para evitar cliques duplicados
+            if (rematchButton != null)
+                rematchButton.interactable = false;
+
+            if (returnToLobbyButton != null)
+                returnToLobbyButton.interactable = false;
+
+            // ✅ Chama GameManager para registrar voto
+            if (gameManager != null)
             {
-                { "WantsRematch", true }
-            };
-            PhotonNetwork.LocalPlayer.SetCustomProperties(voteProps);
+                gameManager.PlayAgain();
+            }
 
-            Debug.Log($"[UIManager] {PhotonNetwork.LocalPlayer.NickName} votou para REMATCH!");
-
-            // ✅ Verifica se todos votaram
-            CheckRematchVotes();
-
-            // ✅ Atualiza UI
-            UpdateRematchStatus();
+            Debug.Log($"[UIManager] {PhotonNetwork.LocalPlayer.NickName} clicou em REMATCH");
         }
 
         /// <summary>
-        /// ✅ NOVO: Verifica se todos os jogadores votaram para rematch
+        /// ✅ Botão: Votar para voltar ao lobby
         /// </summary>
-        private void CheckRematchVotes()
+        private void OnReturnToLobbyButtonClicked()
         {
-            int totalPlayers = PhotonNetwork.PlayerList.Length;
-            int rematchVotes = 0;
-
-            foreach (Player player in PhotonNetwork.PlayerList)
+            if (hasVoted)
             {
-                if (player.CustomProperties.ContainsKey("WantsRematch"))
-                {
-                    bool wantsRematch = (bool)player.CustomProperties["WantsRematch"];
-                    if (wantsRematch)
-                    {
-                        rematchVotes++;
-                    }
-                }
+                Debug.Log("[UIManager] Já votou!");
+                return;
             }
 
-            Debug.Log($"[UIManager] Votos para rematch: {rematchVotes}/{totalPlayers}");
+            hasVoted = true;
 
-            // ✅ Se todos votaram, inicia rematch
-            if (rematchVotes == totalPlayers && totalPlayers > 1)
+            // Desabilita botões para evitar cliques duplicados
+            if (rematchButton != null)
+                rematchButton.interactable = false;
+
+            if (returnToLobbyButton != null)
+                returnToLobbyButton.interactable = false;
+
+            // ✅ Chama GameManager para registrar voto
+            if (gameManager != null)
             {
-                Debug.Log("[UIManager] 🔄 TODOS VOTARAM! Iniciando rematch...");
-                StartCoroutine(StartRematchDelayed());
+                gameManager.BackToLobby();
             }
+
+            Debug.Log($"[UIManager] {PhotonNetwork.LocalPlayer.NickName} clicou em LOBBY");
         }
 
         /// <summary>
-        /// ✅ NOVO: Inicia rematch após delay
+        /// ✅ Atualiza status de votação (chamado pelo GameManager)
         /// </summary>
-        private IEnumerator StartRematchDelayed()
-        {
-            // Mostra painel de loading
-            if (waitingForOpponentPanel != null)
-                waitingForOpponentPanel.SetActive(true);
-
-            if (rematchStatusText != null)
-                rematchStatusText.text = "🔄 Reiniciando partida...";
-
-            yield return new WaitForSeconds(2f);
-
-            // ✅ Master Client reinicia o jogo
-            if (PhotonNetwork.IsMasterClient)
-            {
-                // Reseta votos de rematch
-                foreach (Player player in PhotonNetwork.PlayerList)
-                {
-                    ExitGames.Client.Photon.Hashtable resetProps = new ExitGames.Client.Photon.Hashtable
-                    {
-                        { "WantsRematch", false },
-                        { "Score", 0 }
-                    };
-                    player.SetCustomProperties(resetProps);
-                }
-
-                // Recarrega a cena
-                PhotonNetwork.LoadLevel(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
-            }
-        }
-
-        /// <summary>
-        /// ✅ NOVO: Atualiza status do rematch na UI
-        /// </summary>
-        private void UpdateRematchStatus()
+        public void UpdateRematchVoteStatus(int rematchVotes, int lobbyVotes, int totalPlayers)
         {
             if (rematchStatusText == null)
                 return;
 
-            int totalPlayers = PhotonNetwork.PlayerList.Length;
-            int rematchVotes = 0;
-
-            foreach (Player player in PhotonNetwork.PlayerList)
+            if (hasVoted)
             {
-                if (player.CustomProperties.ContainsKey("WantsRematch"))
-                {
-                    bool wantsRematch = (bool)player.CustomProperties["WantsRematch"];
-                    if (wantsRematch)
-                    {
-                        rematchVotes++;
-                    }
-                }
-            }
-
-            if (hasVotedRematch)
-            {
-                rematchStatusText.text = $"⏳ Aguardando oponente... ({rematchVotes}/{totalPlayers})";
-
-                if (waitingForOpponentPanel != null)
-                    waitingForOpponentPanel.SetActive(true);
+                rematchStatusText.text = $"⏳ Aguardando oponente...\n" +
+                                         $"Rematch: {rematchVotes}/{totalPlayers} | Lobby: {lobbyVotes}/{totalPlayers}";
             }
             else
             {
-                rematchStatusText.text = "Deseja jogar novamente?";
+                rematchStatusText.text = $"Escolha uma opção:\n" +
+                                         $"Rematch: {rematchVotes}/{totalPlayers} | Lobby: {lobbyVotes}/{totalPlayers}";
             }
+
+            Debug.Log($"[UIManager] Status atualizado: Rematch={rematchVotes}, Lobby={lobbyVotes}, Total={totalPlayers}");
+        }
+
+        /// <summary>
+        /// ✅ Mostra tela de loading do rematch
+        /// </summary>
+        public void ShowRematchLoading()
+        {
+            if (waitingForOpponentPanel != null)
+                waitingForOpponentPanel.SetActive(true);
+
+            if (loadingText != null)
+                loadingText.text = "🔄 Reiniciando partida...";
+
+            Debug.Log("[UIManager] Exibindo loading de rematch");
+        }
+
+        /// <summary>
+        /// ✅ Mostra tela de loading do retorno ao lobby
+        /// </summary>
+        public void ShowLobbyLoading()
+        {
+            if (waitingForOpponentPanel != null)
+                waitingForOpponentPanel.SetActive(true);
+
+            if (loadingText != null)
+                loadingText.text = "🚪 Retornando ao lobby...";
+
+            Debug.Log("[UIManager] Exibindo loading de retorno ao lobby");
         }
 
         /// <summary>
@@ -339,76 +321,8 @@ namespace QuantumHeist.Game
         /// </summary>
         public void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
         {
-            if (changedProps.ContainsKey("WantsRematch"))
-            {
-                Debug.Log($"[UIManager] {targetPlayer.NickName} atualizou voto de rematch");
-                CheckRematchVotes();
-                UpdateRematchStatus();
-            }
-        }
-
-        #endregion
-
-        #region Navigation
-
-        /// <summary>
-        /// Retorna ao lobby
-        /// </summary>
-        private void ReturnToLobby()
-        {
-            Debug.Log("[UIManager] Retornando ao lobby...");
-
-            // ✅ Limpa votos antes de sair
-            ExitGames.Client.Photon.Hashtable clearProps = new ExitGames.Client.Photon.Hashtable
-            {
-                { "WantsRematch", false },
-                { "Score", 0 }
-            };
-            PhotonNetwork.LocalPlayer.SetCustomProperties(clearProps);
-
-            // ✅ Sai da sala
-            PhotonNetwork.LeaveRoom();
-
-            // ✅ Carrega cena do lobby
-            StartCoroutine(LoadLobbyWhenDisconnected());
-        }
-
-        /// <summary>
-        /// ✅ Aguarda sair da sala antes de carregar lobby
-        /// </summary>
-        private IEnumerator LoadLobbyWhenDisconnected()
-        {
-            while (PhotonNetwork.InRoom)
-            {
-                yield return null;
-            }
-
-            // ✅ Carrega cena de lobby (ajuste o nome conforme sua cena)
-            PhotonNetwork.LoadLevel("Lobby");
-        }
-
-        #endregion
-
-        #region Unity Callbacks
-
-        private void OnEnable()
-        {
-            // ✅ Registra callbacks do Photon
-            PhotonNetwork.NetworkingClient.EventReceived += OnEventReceived;
-        }
-
-        private void OnDisable()
-        {
-            // ✅ Remove callbacks do Photon
-            PhotonNetwork.NetworkingClient.EventReceived -= OnEventReceived;
-        }
-
-        /// <summary>
-        /// ✅ Handler de eventos customizados do Photon
-        /// </summary>
-        private void OnEventReceived(ExitGames.Client.Photon.EventData photonEvent)
-        {
-            // Placeholder para eventos futuros
+            // Você pode adicionar lógica adicional aqui se necessário
+            Debug.Log($"[UIManager] Player {targetPlayer.NickName} atualizou propriedades");
         }
 
         #endregion

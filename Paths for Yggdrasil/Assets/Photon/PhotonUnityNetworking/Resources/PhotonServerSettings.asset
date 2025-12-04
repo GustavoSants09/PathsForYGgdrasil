@@ -57,6 +57,10 @@ MonoBehaviour:
   - RPC_PlayDashEffect
   - RPC_StealPoints
   - RPC_RequestGameOver
+  - RPC_ExecuteLobby
+  - RPC_ExecuteRematch
+  - RPC_VoteForLobby
+  - RPC_VoteForRematch
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1

@@ -1,6 +1,7 @@
 ﻿using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace QuantumHeist.Game
 {
@@ -24,6 +25,11 @@ namespace QuantumHeist.Game
         [SerializeField] private UIManager uiManager;
 
         private bool gameEnded = false;
+
+        // ✅ Sistema de votação
+        private HashSet<int> playersVotedRematch = new HashSet<int>();
+        private HashSet<int> playersVotedLobby = new HashSet<int>();
+        private bool rematchInProgress = false;
 
         #region Unity Callbacks
 
@@ -112,7 +118,7 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// ✅ NOVO: Dispara o fim de jogo usando CustomProperties da sala
+        /// ✅ Dispara o fim de jogo usando CustomProperties da sala
         /// </summary>
         private void TriggerGameOver(string winnerName, int finalScore)
         {
@@ -136,7 +142,7 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// ✅ NOVO: Executa o fim do jogo (chamado localmente e via callback)
+        /// ✅ Executa o fim do jogo (chamado localmente e via callback)
         /// </summary>
         private void ExecuteGameOver(string winnerName, int finalScore)
         {
@@ -191,17 +197,217 @@ namespace QuantumHeist.Game
         #region Rematch System
 
         /// <summary>
-        /// Reseta votos de rematch de todos os jogadores
+        /// ✅ Reseta votos de rematch
         /// </summary>
         private void ResetRematchVotes()
         {
-            ExitGames.Client.Photon.Hashtable resetProps = new ExitGames.Client.Photon.Hashtable
-            {
-                { "WantsRematch", false }
-            };
-            PhotonNetwork.LocalPlayer.SetCustomProperties(resetProps);
+            playersVotedRematch.Clear();
+            playersVotedLobby.Clear();
+            rematchInProgress = false;
 
-            Debug.Log("[GameManager] Votos de rematch resetados");
+            // Limpa propriedades customizadas de rematch
+            if (PhotonNetwork.LocalPlayer != null)
+            {
+                ExitGames.Client.Photon.Hashtable clearProps = new ExitGames.Client.Photon.Hashtable
+                {
+                    { "WantsRematch", false },
+                    { "WantsLobby", false }
+                };
+                PhotonNetwork.LocalPlayer.SetCustomProperties(clearProps);
+            }
+        }
+
+        /// <summary>
+        /// ✅ Botão: Jogar novamente - registra voto do player
+        /// </summary>
+        public void PlayAgain()
+        {
+            if (rematchInProgress)
+            {
+                Debug.Log("[GameManager] Rematch já em progresso!");
+                return;
+            }
+
+            int myActorNumber = PhotonNetwork.LocalPlayer.ActorNumber;
+
+            // ✅ Envia RPC para todos os clientes
+            photonView.RPC("RPC_VoteForRematch", RpcTarget.AllBuffered, myActorNumber);
+
+            Debug.Log($"[GameManager] Player {PhotonNetwork.NickName} (#{myActorNumber}) votou para REMATCH");
+        }
+
+        /// <summary>
+        /// ✅ Botão: Voltar ao lobby - registra voto do player
+        /// </summary>
+        public void BackToLobby()
+        {
+            if (rematchInProgress)
+            {
+                Debug.Log("[GameManager] Transição já em progresso!");
+                return;
+            }
+
+            int myActorNumber = PhotonNetwork.LocalPlayer.ActorNumber;
+
+            // ✅ Envia RPC para todos os clientes
+            photonView.RPC("RPC_VoteForLobby", RpcTarget.AllBuffered, myActorNumber);
+
+            Debug.Log($"[GameManager] Player {PhotonNetwork.NickName} (#{myActorNumber}) votou para LOBBY");
+        }
+
+        /// <summary>
+        /// ✅ RPC: Registra voto para rematch
+        /// </summary>
+        [PunRPC]
+        private void RPC_VoteForRematch(int actorNumber)
+        {
+            if (!playersVotedRematch.Contains(actorNumber))
+            {
+                playersVotedRematch.Add(actorNumber);
+                Debug.Log($"[GameManager] ✅ Voto REMATCH registrado: Player #{actorNumber}. Total: {playersVotedRematch.Count}/{PhotonNetwork.CurrentRoom.PlayerCount}");
+            }
+
+            // Remove voto de lobby se existir
+            if (playersVotedLobby.Contains(actorNumber))
+            {
+                playersVotedLobby.Remove(actorNumber);
+                Debug.Log($"[GameManager] 🔄 Player #{actorNumber} mudou voto de LOBBY para REMATCH");
+            }
+
+            // Notifica UIManager
+            if (uiManager != null)
+            {
+                uiManager.UpdateRematchVoteStatus(playersVotedRematch.Count, playersVotedLobby.Count, PhotonNetwork.CurrentRoom.PlayerCount);
+            }
+
+            // Verifica se todos votaram
+            CheckRematchVotes();
+        }
+
+        /// <summary>
+        /// ✅ RPC: Registra voto para voltar ao lobby
+        /// </summary>
+        [PunRPC]
+        private void RPC_VoteForLobby(int actorNumber)
+        {
+            if (!playersVotedLobby.Contains(actorNumber))
+            {
+                playersVotedLobby.Add(actorNumber);
+                Debug.Log($"[GameManager] ✅ Voto LOBBY registrado: Player #{actorNumber}. Total: {playersVotedLobby.Count}/{PhotonNetwork.CurrentRoom.PlayerCount}");
+            }
+
+            // Remove voto de rematch se existir
+            if (playersVotedRematch.Contains(actorNumber))
+            {
+                playersVotedRematch.Remove(actorNumber);
+                Debug.Log($"[GameManager] 🔄 Player #{actorNumber} mudou voto de REMATCH para LOBBY");
+            }
+
+            // Notifica UIManager
+            if (uiManager != null)
+            {
+                uiManager.UpdateRematchVoteStatus(playersVotedRematch.Count, playersVotedLobby.Count, PhotonNetwork.CurrentRoom.PlayerCount);
+            }
+
+            // Verifica se todos votaram
+            CheckRematchVotes();
+        }
+
+        /// <summary>
+        /// ✅ Verifica se todos os jogadores votaram
+        /// </summary>
+        private void CheckRematchVotes()
+        {
+            int totalPlayers = PhotonNetwork.CurrentRoom.PlayerCount;
+
+            Debug.Log($"[GameManager] CheckRematchVotes: Rematch={playersVotedRematch.Count}/{totalPlayers}, Lobby={playersVotedLobby.Count}/{totalPlayers}");
+
+            // ✅ Todos votaram rematch
+            if (playersVotedRematch.Count == totalPlayers && totalPlayers >= 1)
+            {
+                Debug.Log("[GameManager] 🎮 TODOS VOTARAM REMATCH! Executando...");
+                photonView.RPC("RPC_ExecuteRematch", RpcTarget.All);
+            }
+            // ✅ Todos votaram lobby
+            else if (playersVotedLobby.Count == totalPlayers && totalPlayers >= 1)
+            {
+                Debug.Log("[GameManager] 🚪 TODOS VOTARAM LOBBY! Executando...");
+                photonView.RPC("RPC_ExecuteLobby", RpcTarget.All);
+            }
+        }
+
+        /// <summary>
+        /// ✅ RPC: Executa rematch para todos os clientes
+        /// </summary>
+        [PunRPC]
+        private void RPC_ExecuteRematch()
+        {
+            if (rematchInProgress)
+            {
+                Debug.Log("[GameManager] ⚠️ Rematch já em progresso, ignorando chamada duplicada");
+                return;
+            }
+
+            rematchInProgress = true;
+            Debug.Log("[GameManager] 🔄 EXECUTANDO REMATCH para todos os jogadores!");
+
+            // Limpa votos
+            playersVotedRematch.Clear();
+            playersVotedLobby.Clear();
+
+            // Reseta estado do jogo
+            gameEnded = false;
+            Time.timeScale = 1f;
+
+            // Notifica UIManager
+            if (uiManager != null)
+            {
+                uiManager.ShowRematchLoading();
+            }
+
+            // ✅ IMPORTANTE: Apenas Master Client carrega a cena
+            if (PhotonNetwork.IsMasterClient)
+            {
+                Debug.Log("[GameManager] 👑 Master Client carregando GameScene para todos...");
+                PhotonNetwork.LoadLevel("GameScene");
+            }
+            else
+            {
+                Debug.Log("[GameManager] 🎮 Cliente aguardando Master carregar a cena...");
+            }
+        }
+
+        /// <summary>
+        /// ✅ RPC: Executa retorno ao lobby para todos os clientes
+        /// </summary>
+        [PunRPC]
+        private void RPC_ExecuteLobby()
+        {
+            if (rematchInProgress)
+            {
+                Debug.Log("[GameManager] ⚠️ Transição já em progresso, ignorando chamada duplicada");
+                return;
+            }
+
+            rematchInProgress = true;
+            Debug.Log("[GameManager] 🚪 EXECUTANDO RETORNO AO LOBBY para todos os jogadores!");
+
+            // Limpa votos
+            playersVotedRematch.Clear();
+            playersVotedLobby.Clear();
+
+            // Reseta time scale
+            Time.timeScale = 1f;
+
+            // Notifica UIManager
+            if (uiManager != null)
+            {
+                uiManager.ShowLobbyLoading();
+            }
+
+            // ✅ Todos os clientes saem da sala
+            Debug.Log("[GameManager] 🔌 Saindo da sala Photon...");
+            PhotonNetwork.LeaveRoom();
         }
 
         #endregion
@@ -231,7 +437,7 @@ namespace QuantumHeist.Game
         }
 
         /// <summary>
-        /// ✅ NOVO: Callback quando CustomProperties da sala mudam
+        /// ✅ Callback quando CustomProperties da sala mudam
         /// </summary>
         public override void OnRoomPropertiesUpdate(ExitGames.Client.Photon.Hashtable propertiesThatChanged)
         {
@@ -249,6 +455,47 @@ namespace QuantumHeist.Game
 
                     ExecuteGameOver(winnerName, finalScore);
                 }
+            }
+        }
+
+        /// <summary>
+        /// ✅ Callback quando sai da sala
+        /// </summary>
+        public override void OnLeftRoom()
+        {
+            Debug.Log("[GameManager] 🔌 OnLeftRoom: Saiu da sala Photon");
+
+            // Limpa votos ao sair da sala
+            playersVotedRematch.Clear();
+            playersVotedLobby.Clear();
+            rematchInProgress = false;
+
+            // ✅ Retorna para cena do lobby usando SceneManager (não Photon)
+            Debug.Log("[GameManager] 🏠 Carregando cena do Lobby...");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Lobby");
+        }
+
+        /// <summary>
+        /// ✅ Callback quando outro jogador sai da sala
+        /// </summary>
+        public override void OnPlayerLeftRoom(Player otherPlayer)
+        {
+            Debug.Log($"[GameManager] 👋 Player {otherPlayer.NickName} (#{otherPlayer.ActorNumber}) saiu da sala");
+
+            // Remove votos do player que saiu
+            playersVotedRematch.Remove(otherPlayer.ActorNumber);
+            playersVotedLobby.Remove(otherPlayer.ActorNumber);
+
+            // Atualiza UI
+            if (uiManager != null)
+            {
+                uiManager.UpdateRematchVoteStatus(playersVotedRematch.Count, playersVotedLobby.Count, PhotonNetwork.CurrentRoom.PlayerCount);
+            }
+
+            // Verifica votos novamente (se jogo terminou)
+            if (gameEnded && !rematchInProgress)
+            {
+                CheckRematchVotes();
             }
         }
 
