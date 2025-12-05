@@ -402,23 +402,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 833f6f35ea6f8b740ac303586fd9e3e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuantumHeist.Game.PlayerController
-  baseMovementSpeed: 5
+  movementSpeed: 5
   sprintMultiplier: 1.5
+  gravity: -9.81
+  mouseSensitivity: 2
+  maxLookAngle: 80
   dashDistance: 10
   dashDuration: 0.2
   dashCooldown: 4
+  stealPercentage: 0.2
+  stunDuration: 1.5
+  minPointsToSteal: 10
   slowZonePrefab: {fileID: 0}
   slowZoneCooldown: 8
-  slowZoneDuration: 6
-  slowZoneSlowPercent: 0.5
-  speedBoostMultiplier: 1.5
-  speedBoostDuration: 3
-  scoreText: {fileID: 0}
-  dashCooldownText: {fileID: 0}
-  slowZoneCooldownText: {fileID: 0}
-  speedBoostIndicator: {fileID: 0}
+  slowZoneKey: 101
+  playerScore: 0
   dashParticles: {fileID: 0}
-  stealParticles: {fileID: 0}
+  dashSound: {fileID: 0}
+  stealEffect: {fileID: 0}
+  stealSound: {fileID: 0}
+  stunEffect: {fileID: 0}
+  stunSound: {fileID: 0}
 --- !u!114 &6559347347124438129
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -432,7 +436,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PushToTalkController
   pushToTalkKey: 118
-  voiceRecorder: {fileID: 0}
+  voiceRecorder: {fileID: 3776854793160483884}
   voiceIndicator: {fileID: 0}
   transmittingColor: {r: 0, g: 1, b: 0, a: 1}
   mutedColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.3}
