@@ -1,22 +1,23 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace QuantumHeist.Network
 {
     /// <summary>
-    /// Gerencia toda a comunicaÁ„o com Photon PUN2 para o sistema de lobby
-    /// Respons·vel por conex„o, criaÁ„o/listagem de salas e callbacks de rede
+    /// Gerencia toda a comunica√ß√£o com Photon PUN2 para o sistema de lobby
+    /// Respons√°vel por conex√£o, cria√ß√£o/listagem de salas e callbacks de rede
     /// </summary>
     public class NetworkManager : MonoBehaviourPunCallbacks
     {
-        [Header("ConfiguraÁıes de Conex„o")]
+        [Header("Configura√ß√µes de Conex√£o")]
         [SerializeField] private string gameVersion = "1.0";
-        [SerializeField] private byte maxPlayersPerRoom = 2; // Quantum Heist È 1v1
+        [SerializeField] private byte maxPlayersPerRoom = 2; // Quantum Heist √© 1v1
 
-        [Header("UI - PainÈis")]
+        [Header("UI - Pain√©is")]
         [SerializeField] private GameObject lobbyPanel;
         [SerializeField] private GameObject roomPanel;
 
@@ -34,14 +35,17 @@ namespace QuantumHeist.Network
         [SerializeField] private Transform playerListContent;
         [SerializeField] private GameObject playerListItemPrefab;
 
-        // Cache de salas disponÌveis
+        // Cache de salas dispon√≠veis
         private Dictionary<string, RoomInfo> cachedRoomList = new Dictionary<string, RoomInfo>();
+
+        // ‚úÖ NOVO: Controle de sa√≠da de jogador
+        private bool isKickingPlayer = false;
 
         #region Unity Callbacks
 
         private void Start()
         {
-            // Carrega nickname salvo ou gera um aleatÛrio
+            // Carrega nickname salvo ou gera um aleat√≥rio
             if (PlayerPrefs.HasKey("PlayerNickname"))
             {
                 nicknameInput.text = PlayerPrefs.GetString("PlayerNickname");
@@ -57,10 +61,10 @@ namespace QuantumHeist.Network
 
         #endregion
 
-        #region Conex„o Photon
+        #region Conex√£o Photon
 
         /// <summary>
-        /// Inicia conex„o com servidores Photon
+        /// Inicia conex√£o com servidores Photon
         /// </summary>
         private void ConnectToPhoton()
         {
@@ -75,7 +79,7 @@ namespace QuantumHeist.Network
 
         #endregion
 
-        #region MÈtodos P˙blicos - UI Buttons
+        #region M√©todos P√∫blicos - UI Buttons
 
         /// <summary>
         /// Cria uma sala com nome customizado
@@ -104,7 +108,7 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
-        /// Entra em uma sala especÌfica digitada pelo jogador
+        /// Entra em uma sala espec√≠fica digitada pelo jogador
         /// </summary>
         public void JoinSpecificRoom()
         {
@@ -123,7 +127,7 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
-        /// Entra em uma sala especÌfica pelo nome
+        /// Entra em uma sala espec√≠fica pelo nome
         /// </summary>
         public void JoinRoom(string roomName)
         {
@@ -135,14 +139,14 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
-        /// Entra em uma sala aleatÛria disponÌvel
+        /// Entra em uma sala aleat√≥ria dispon√≠vel
         /// </summary>
         public void JoinRandomRoom()
         {
             PlayerPrefs.SetString("PlayerNickname", nicknameInput.text);
             PhotonNetwork.NickName = nicknameInput.text;
 
-            UpdateConnectionStatus("Procurando sala disponÌvel...");
+            UpdateConnectionStatus("Procurando sala dispon√≠vel...");
             PhotonNetwork.JoinRandomRoom();
         }
 
@@ -152,6 +156,33 @@ namespace QuantumHeist.Network
         public void LeaveRoom()
         {
             UpdateConnectionStatus("Saindo da sala...");
+
+            // ‚úÖ NOVO: Se estiver em jogo, notifica outros jogadores antes de sair
+            if (PhotonNetwork.InRoom)
+            {
+                StartCoroutine(LeaveRoomSequence());
+            }
+        }
+
+        /// <summary>
+        /// ‚úÖ NOVO: Sequ√™ncia de sa√≠da da sala com notifica√ß√£o
+        /// </summary>
+        private IEnumerator LeaveRoomSequence()
+        {
+            // Notifica outros jogadores via RPC
+            if (PhotonNetwork.CurrentRoom != null)
+            {
+                PhotonView photonView = GetComponent<PhotonView>();
+                if (photonView != null)
+                {
+                    photonView.RPC("RPC_PlayerLeavingRoom", RpcTarget.OthersBuffered, PhotonNetwork.LocalPlayer.NickName);
+                }
+            }
+
+            // Aguarda um frame para RPC ser enviado
+            yield return new WaitForSeconds(0.1f);
+
+            // Sai da sala
             PhotonNetwork.LeaveRoom();
         }
 
@@ -182,12 +213,12 @@ namespace QuantumHeist.Network
 
         #endregion
 
-        #region Callbacks Photon - Conex„o
+        #region Callbacks Photon - Conex√£o
 
         public override void OnConnectedToMaster()
         {
             UpdateConnectionStatus("Conectado! Entrando no lobby...");
-            Debug.Log($"Conectado ao servidor Photon. Regi„o: {PhotonNetwork.CloudRegion}");
+            Debug.Log($"Conectado ao servidor Photon. Regi√£o: {PhotonNetwork.CloudRegion}");
 
             // Entra automaticamente no lobby
             PhotonNetwork.JoinLobby();
@@ -227,7 +258,7 @@ namespace QuantumHeist.Network
         public override void OnCreateRoomFailed(short returnCode, string message)
         {
             UpdateConnectionStatus($"ERRO ao criar sala: {message}");
-            Debug.LogError($"Falha ao criar sala. CÛdigo: {returnCode}, Mensagem: {message}");
+            Debug.LogError($"Falha ao criar sala. C√≥digo: {returnCode}, Mensagem: {message}");
         }
 
         public override void OnJoinedRoom()
@@ -239,20 +270,20 @@ namespace QuantumHeist.Network
             lobbyPanel.SetActive(false);
             roomPanel.SetActive(true);
 
-            // Atualiza informaÁıes da sala
+            // Atualiza informa√ß√µes da sala
             UpdateRoomUI();
         }
 
         public override void OnJoinRoomFailed(short returnCode, string message)
         {
             UpdateConnectionStatus($"ERRO ao entrar na sala: {message}");
-            Debug.LogError($"Falha ao entrar na sala. CÛdigo: {returnCode}, Mensagem: {message}");
+            Debug.LogError($"Falha ao entrar na sala. C√≥digo: {returnCode}, Mensagem: {message}");
         }
 
         public override void OnJoinRandomFailed(short returnCode, string message)
         {
-            UpdateConnectionStatus("Nenhuma sala disponÌvel. Crie uma!");
-            Debug.LogWarning($"Nenhuma sala aleatÛria disponÌvel. Mensagem: {message}");
+            UpdateConnectionStatus("Nenhuma sala dispon√≠vel. Crie uma!");
+            Debug.LogWarning($"Nenhuma sala aleat√≥ria dispon√≠vel. Mensagem: {message}");
         }
 
         public override void OnLeftRoom()
@@ -274,15 +305,62 @@ namespace QuantumHeist.Network
         public override void OnPlayerLeftRoom(Player otherPlayer)
         {
             Debug.Log($"Jogador saiu: {otherPlayer.NickName}");
-            UpdateRoomUI();
+
+            // ‚úÖ NOVO: Se outro jogador saiu e ainda estamos na sala, tamb√©m sa√≠mos
+            if (PhotonNetwork.InRoom && !isKickingPlayer)
+            {
+                isKickingPlayer = true;
+                StartCoroutine(KickRemainingPlayer(otherPlayer.NickName));
+            }
+            else
+            {
+                UpdateRoomUI();
+            }
         }
 
         public override void OnMasterClientSwitched(Player newMasterClient)
         {
             Debug.Log($"Novo Master Client: {newMasterClient.NickName}");
 
-            // Atualiza visibilidade do bot„o de start
+            // Atualiza visibilidade do bot√£o de start
             startGameButton.SetActive(PhotonNetwork.IsMasterClient);
+        }
+
+        #endregion
+
+        #region ‚úÖ NOVO: Sistema de Expuls√£o Autom√°tica
+
+        /// <summary>
+        /// ‚úÖ NOVO: RPC para notificar jogador que outro est√° saindo
+        /// </summary>
+        [PunRPC]
+        private void RPC_PlayerLeavingRoom(string playerName)
+        {
+            Debug.Log($"[NetworkManager] üö™ {playerName} est√° saindo da sala!");
+            UpdateConnectionStatus($"{playerName} saiu da sala");
+        }
+
+        /// <summary>
+        /// ‚úÖ NOVO: Expulsa o jogador restante quando outro sai
+        /// </summary>
+        private IEnumerator KickRemainingPlayer(string leftPlayerName)
+        {
+            Debug.Log($"[NetworkManager] ‚ö†Ô∏è {leftPlayerName} saiu! Expulsando jogador restante...");
+
+            // Mostra mensagem na UI
+            UpdateConnectionStatus($"{leftPlayerName} saiu. Retornando ao lobby...");
+
+            // Aguarda 2 segundos para o jogador ver a mensagem
+            yield return new WaitForSeconds(2f);
+
+            // Sai da sala
+            if (PhotonNetwork.InRoom)
+            {
+                PhotonNetwork.LeaveRoom();
+            }
+
+            // Reseta flag
+            isKickingPlayer = false;
         }
 
         #endregion
@@ -313,7 +391,7 @@ namespace QuantumHeist.Network
         #region UI Updates
 
         /// <summary>
-        /// Atualiza o texto de status de conex„o
+        /// Atualiza o texto de status de conex√£o
         /// </summary>
         private void UpdateConnectionStatus(string status)
         {
@@ -324,7 +402,7 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
-        /// Atualiza a lista visual de salas disponÌveis
+        /// Atualiza a lista visual de salas dispon√≠veis
         /// </summary>
         private void UpdateRoomListUI()
         {
@@ -334,7 +412,7 @@ namespace QuantumHeist.Network
                 Destroy(child.gameObject);
             }
 
-            // Cria item para cada sala disponÌvel
+            // Cria item para cada sala dispon√≠vel
             foreach (RoomInfo room in cachedRoomList.Values)
             {
                 if (room.PlayerCount < room.MaxPlayers && room.IsOpen)
@@ -347,19 +425,19 @@ namespace QuantumHeist.Network
         }
 
         /// <summary>
-        /// Atualiza informaÁıes da sala atual
+        /// Atualiza informa√ß√µes da sala atual
         /// </summary>
         private void UpdateRoomUI()
         {
             if (!PhotonNetwork.InRoom) return;
 
-            // Atualiza tÌtulo da sala
+            // Atualiza t√≠tulo da sala
             roomTitleText.text = $"Sala: {PhotonNetwork.CurrentRoom.Name}";
 
             // Atualiza contador de jogadores
             playersInRoomText.text = $"Jogadores: {PhotonNetwork.CurrentRoom.PlayerCount}/{PhotonNetwork.CurrentRoom.MaxPlayers}";
 
-            // Atualiza visibilidade do bot„o Start (apenas Master Client vÍ)
+            // Atualiza visibilidade do bot√£o Start (apenas Master Client v√™)
             startGameButton.SetActive(PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2);
 
             // Atualiza lista de jogadores
